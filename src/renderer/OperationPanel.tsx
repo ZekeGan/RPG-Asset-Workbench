@@ -33,11 +33,13 @@ export function OperationPanel({
   assets,
   kind,
   back,
+  online,
 }: {
   project: Project;
   assets: Asset[];
   kind: 'apply' | 'restore';
   back: () => void;
+  online: boolean;
 }) {
   const [states, setStates] = useState<Record<string, VersionState>>({}),
     [records, setRecords] = useState<OperationRecord[]>([]),
@@ -61,9 +63,7 @@ export function OperationPanel({
     rows = assets.filter(
       (a) =>
         states[a.id] &&
-        (kind === 'apply'
-          ? states[a.id].active && states[a.id].active !== states[a.id].deployed
-          : states[a.id].deployed),
+        (kind === 'apply' ? states[a.id].active !== states[a.id].deployed : states[a.id].deployed),
     );
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
@@ -85,6 +85,11 @@ export function OperationPanel({
         ← 返回工作臺
       </button>
       <h1>{kind === 'apply' ? '套用到遊戲' : '還原遊戲圖片'}</h1>
+      {!online && (
+        <p role="alert" className={s.warning}>
+          遊戲位置無法驗證，請返回工作臺重新連結。套用／還原已停用。
+        </p>
+      )}
       <p>
         {kind === 'apply'
           ? '將全部待套用圖片寫入指定遊戲，保留原始備份。'
@@ -104,7 +109,7 @@ export function OperationPanel({
           <p>{o.error || '發現未完成操作。確認恢復後，回到該次操作開始前的版本。'}</p>
           <button
             className={s.primary}
-            disabled={busy || !confirmed}
+            disabled={busy || !confirmed || !online}
             onClick={() =>
               void run(async () => unwrap(await window.operations.recover(project.id, o.id, true)))
             }
@@ -126,7 +131,7 @@ export function OperationPanel({
       <div className={s.operationTable}>
         <div className={s.operationHead}>
           <span>選取</span>
-          <span>{kind === 'apply' ? '原始圖片' : '目前遊戲版本'}</span>
+          <span>目前遊戲版本</span>
           <span>{kind === 'apply' ? '目前替換圖片' : '還原至原圖'}</span>
           <span>版本／狀態</span>
         </div>
@@ -147,11 +152,12 @@ export function OperationPanel({
                   )
                 }
               />
-              <OperationImage asset={a} version={kind === 'apply' ? null : st.deployed} />
+              <OperationImage asset={a} version={st.deployed} />
               <OperationImage asset={a} version={kind === 'apply' ? st.active : null} />
               <div>
                 <strong className={s.warning}>
-                  {kind === 'apply' ? 'V' + active?.number : 'V' + deployed?.number + ' → 原圖'}
+                  {deployed ? `V${deployed.number}` : '原圖'} →{' '}
+                  {kind === 'apply' && active ? `V${active.number}` : '原圖'}
                 </strong>
                 <small>確認後執行完整性檢查</small>
               </div>
@@ -179,6 +185,8 @@ export function OperationPanel({
           className={s.primary}
           disabled={
             busy ||
+            !online ||
+            (kind === 'apply' && !['ready', 'warnings'].includes(project.status)) ||
             !confirmed ||
             !!unfinished.length ||
             !rows.length ||
@@ -210,6 +218,7 @@ function OperationImage({ asset, version }: { asset: Asset; version: string | nu
   const [src, setSrc] = useState('');
   useEffect(() => {
     let alive = true;
+    setSrc('');
     void window.versions
       .preview(asset.id, version)
       .then((r) => {

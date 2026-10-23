@@ -130,6 +130,16 @@ describe('read-only catalog and immutable baseline', () => {
       expect(p.status).toBe('cancelled');
       expect(f.catalog.assets(p.id).length).toBeLessThan(14);
       expect(f.catalog.progress.running).toBe(false);
+      clearInterval(timer);
+      const saved = f.catalog.assets(p.id);
+      const reopened = new Catalog(f.store, f.data);
+      const plan = await reopened.scanPlan(p.id);
+      expect(plan.added.length).toBe(14 - saved.length);
+      const resumed = await reopened.scanCommit(p.id, plan.token);
+      expect(resumed.status).toBe('ready');
+      expect(reopened.assets(p.id)).toHaveLength(14);
+      for (const asset of saved)
+        expect(reopened.assets(p.id).find((a) => a.id === asset.id)).toEqual(asset);
     } finally {
       clearInterval(timer);
     }

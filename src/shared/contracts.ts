@@ -51,6 +51,9 @@ export interface ProjectDraft {
   encrypted: boolean;
 }
 export interface CatalogBridge {
+  availability: (id: string) => Promise<Result<{ online: boolean; error: string | null }>>;
+  scanPlan: (id: string) => Promise<Result<ScanPlan>>;
+  scanCommit: (id: string, token: string) => Promise<Result<Project>>;
   choose: () => Promise<Result<ProjectDraft | null>>;
   projects: () => Promise<Result<Project[]>>;
   create: (token: string, name: string, confirmed: boolean) => Promise<Result<Project | null>>;
@@ -58,6 +61,12 @@ export interface CatalogBridge {
   preview: (id: string) => Promise<Result<Preview>>;
   progress: () => Promise<Result<ScanProgress>>;
   cancel: () => Promise<Result<void>>;
+}
+export interface ScanPlan {
+  token: string;
+  added: string[];
+  changed: string[];
+  missing: string[];
 }
 export interface Version {
   id: string;
@@ -82,6 +91,7 @@ export interface ImportDraft {
   differences: string[];
 }
 export interface VersionBridge {
+  drop: (id: string, files: File[]) => Promise<Result<ImportDraft>>;
   state: (id: string) => Promise<Result<VersionState>>;
   choose: (id: string) => Promise<Result<ImportDraft | null>>;
   commit: (token: string, accepted: boolean) => Promise<Result<VersionState>>;
@@ -129,6 +139,7 @@ export interface Group {
   assetIds: string[];
 }
 export interface BatchFile {
+  candidates: string[];
   token: string;
   path: string;
   name: string;
@@ -136,6 +147,7 @@ export interface BatchFile {
   error: string | null;
 }
 export interface ManagerBridge {
+  dropBatch: (projectId: string, files: File[]) => Promise<Result<BatchFile[]>>;
   storage: () => Promise<Result<{ blocked: boolean; error: string | null }>>;
   retryStorage: () => Promise<Result<{ blocked: boolean; error: string | null }>>;
   groups: (projectId: string) => Promise<Result<Group[]>>;

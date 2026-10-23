@@ -197,6 +197,52 @@ async function ready() {
   );
   return { ...f, project, assets, game: game2, edit };
 }
+it('selecting original queues V1 to original without writing, then preserves history and non-targets', async () => {
+  const f = await ready(),
+    ops = new Operations(f.store, f.catalog, f.versions, f.data);
+  await ops.execute(f.project.id, 'apply');
+  const a = f.assets[0],
+    deployed = f.versions.state(a.id).deployed;
+  await f.versions.select(a.id, null);
+  expect(ops.pending(f.project.id)).toEqual([a.id]);
+  expect(await readFile(join(f.game, a.path))).toEqual(f.edit);
+  await expect(f.versions.remove(a.id, deployed!)).rejects.toThrow('不可刪');
+  await ops.execute(f.project.id, 'apply');
+  expect(await readFile(join(f.game, a.path))).toEqual(f.bytes);
+  expect(f.versions.state(a.id)).toMatchObject({ active: null, deployed: null });
+  expect(f.versions.state(a.id).versions).toHaveLength(1);
+  expect(ops.pending(f.project.id)).toEqual([]);
+  for (const other of f.assets.slice(1))
+    expect(await readFile(join(f.game, other.path))).toEqual(f.edit);
+});
+it.each(['before-write', 'before-commit'])(
+  'return to original recovers V1 after %s failure',
+  async (point) => {
+    const f = await ready();
+    await new Operations(f.store, f.catalog, f.versions, f.data).execute(f.project.id, 'apply');
+    const previous = f.assets.map((a) => f.versions.state(a.id).deployed);
+    for (const a of f.assets) await f.versions.select(a.id, null);
+    const ops = new Operations(f.store, f.catalog, f.versions, f.data, (p, i) => {
+      if (p === point && (p === 'before-commit' || i === 1)) throw Error('injected');
+    });
+    await expect(ops.execute(f.project.id, 'apply')).rejects.toThrow('injected');
+    expect(ops.list(f.project.id)[0].status).toBe('recovered');
+    for (const [i, a] of f.assets.entries()) {
+      expect(await readFile(join(f.game, a.path))).toEqual(f.edit);
+      expect(f.versions.state(a.id)).toMatchObject({ active: null, deployed: previous[i] });
+    }
+  },
+);
+it('return to original blocks external changes before writing any target', async () => {
+  const f = await ready(),
+    ops = new Operations(f.store, f.catalog, f.versions, f.data);
+  await ops.execute(f.project.id, 'apply');
+  for (const a of f.assets) await f.versions.select(a.id, null);
+  await writeFile(join(f.game, f.assets[1].path), 'external');
+  await expect(ops.execute(f.project.id, 'apply')).rejects.toThrow('外部');
+  expect(await readFile(join(f.game, f.assets[0].path))).toEqual(f.edit);
+  expect(await readFile(join(f.game, f.assets[1].path), 'utf8')).toBe('external');
+});
 it('applies and restores three files, preserving active and history', async () => {
   const f = await ready(),
     ops = new Operations(f.store, f.catalog, f.versions, f.data);

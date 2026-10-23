@@ -65,7 +65,23 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
   const show = (id: string | null) =>
     void run(async () => setLarge(value(await window.manager.fullPreview(asset.id, id))));
   return (
-    <div>
+    <div
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (busy) return;
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length !== 1) {
+          setError('詳細頁只接受一張圖片，批量匯入請返回工作臺。');
+          return;
+        }
+        void run(async () => {
+          setAccepted(false);
+          setDraft(value(await window.versions.drop(asset.id, files)));
+        });
+      }}
+    >
       <div className={s.pageHeading}>
         <h1>{asset.path.split('/').pop()}</h1>
         <small>
@@ -103,11 +119,13 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
           <div className={s.currentLayout}>
             <button
               className={s.previewButton}
-              disabled={busy || !active}
-              onClick={() => show(active!.id)}
+              disabled={busy || (!active && !state?.deployed)}
+              onClick={() => show(active?.id ?? null)}
             >
               {current ? (
                 <img src={current.dataUrl} alt="目前選用圖片" />
+              ) : state?.deployed && !state.active && original ? (
+                <img src={original.dataUrl} alt="待套用原圖" />
               ) : (
                 <span>尚未選用替換圖</span>
               )}
@@ -116,7 +134,9 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
               <strong className={active?.id === state?.deployed ? s.success : s.warning}>
                 {active
                   ? `V${active.number} · ${active.id === state?.deployed ? '已套用' : '待套用'}`
-                  : '尚未選用'}
+                  : state?.deployed
+                    ? '原圖 · 待套用'
+                    : '尚未選用'}
               </strong>
               <p>遊戲：{deployed ? 'V' + deployed.number : '尚無工具部署紀錄'}</p>
               <p>{state?.versions.length ?? 0} 筆上傳紀錄</p>
@@ -136,7 +156,7 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                 disabled={busy || !state?.active}
                 onClick={() => setAction({ kind: 'select', id: null })}
               >
-                取消目前替換
+                選回原圖
               </button>
               <button
                 disabled={busy}
@@ -267,7 +287,7 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
               ? '永久刪除此歷史版本？'
               : action.id
                 ? '選用此歷史版本？'
-                : '取消目前替換？'
+                : '選回原圖？確認套用前不會修改遊戲'
           }
           busy={busy}
           close={() => setAction(null)}

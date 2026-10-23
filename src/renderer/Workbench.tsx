@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type {
   Asset,
+  BatchFile,
   CatalogBridge,
   Group,
   Project,
   ProjectDraft,
   ScanProgress,
+  ScanPlan,
   VersionState,
 } from '../shared/contracts';
 import s from './workbench.module.css';
@@ -125,6 +127,32 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
     [busy, setBusy] = useState(false),
     [progress, setProgress] = useState<ScanProgress | null>(null);
   const [candidate, setCandidate] = useState<ProjectDraft | null>(null);
+  const [batchFiles, setBatchFiles] = useState<BatchFile[] | null>(null);
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [availability, setAvailability] = useState<{ online: boolean; error: string | null }>({
+    online: false,
+    error: null,
+  });
+  const [scanPlan, setScanPlan] = useState<ScanPlan | null>(null);
+  useEffect(() => {
+    if (!project) return;
+    let alive = true;
+    const check = () =>
+      void window.catalog
+        .availability(project.id)
+        .then((r) => {
+          if (alive && r.ok) setAvailability(r.value);
+        })
+        .catch(() => {
+          if (alive) setAvailability({ online: false, error: '無法檢查遊戲位置' });
+        });
+    check();
+    const timer = setInterval(check, 5000);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+    };
+  }, [project?.id, project?.root]);
   const [creating, setCreating] = useState(false),
     [name, setName] = useState(''),
     [confirmed, setConfirmed] = useState(false),
@@ -185,13 +213,15 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
   }, [search, folder, group, status, project?.id]);
   useEffect(() => {
     if (!detail && !operation && list.current) list.current.scrollTop = scroll.current;
-  }, [detail, operation]);
+  }, [detail, operation, batch]);
   async function openProject(p: Project) {
     const n = ++request.current;
     setBusy(true);
     setDetail(null);
     setOperation(null);
     setProject(p);
+    setAvailability({ online: false, error: null });
+    setScanPlan(null);
     setAssets([]);
     setStates({});
     setGroups([]);
@@ -246,7 +276,7 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
       (!group || currentGroup?.assetIds.includes(a.id)) &&
       a.path.toLowerCase().includes(search.toLowerCase()) &&
       (status === 'all' ||
-        (status === 'pending' && !!st?.active && st.active !== st.deployed) ||
+        (status === 'pending' && !!st && st.active !== st.deployed) ||
         (status === 'warnings' && warning) ||
         (status === 'empty' && !st?.active) ||
         (status === 'deployed' && !!st?.deployed))
@@ -258,7 +288,18 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
   const remember = () => {
     scroll.current = list.current?.scrollTop ?? scroll.current;
   };
-  const locked = busy || !!operation || storage.blocked;
+  const locked = busy || !!operation || batch || batchBusy || storage.blocked;
+  async function prepareScan() {
+    if (!project) return;
+    setBusy(true);
+    try {
+      setScanPlan(value(await window.catalog.scanPlan(project.id)));
+    } catch (e) {
+      setMessage(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function groupSubmit() {
     if (!project) return;
     setBusy(true);
@@ -280,7 +321,26 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
     }
   }
   return (
-    <div className={s.app}>
+    <div
+      className={s.app}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault();
+        if (!project || detail || operation || batch || busy || storage.blocked) return;
+        const files = Array.from(e.dataTransfer.files);
+        if (!files.length) return;
+        setBusy(true);
+        void window.manager
+          .dropBatch(project.id, files)
+          .then((r) => {
+            setBatchFiles(value(r));
+            remember();
+            setBatch(true);
+          })
+          .catch((e) => setMessage(String(e)))
+          .finally(() => setBusy(false));
+      }}
+    >
       <header className={s.top}>
         <button
           className={s.brand}
@@ -317,12 +377,18 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
           <span className={s.saveState}>{busy ? '處理中…' : '本機專案'}</span>
           {project ? (
             <>
+             <button
+                disabled={busy || !availability.online || storage.blocked}
+                onClick={() => void prepareScan()}
+              >
+                {['ready', 'warnings'].includes(project.status) ? '重新掃描新增素材' : '繼續掃描'}
+              </button>
               <button disabled={locked} onClick={() => setSettings(true)}>
                 <Icon name="settings" />
                 專案設定
               </button>
               <button
-                disabled={locked}
+                disabled={locked || !availability.online}
                 onClick={() => {
                   remember();
                   setDetail(null);
@@ -333,7 +399,9 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
               </button>
               <button
                 className={s.primary}
-                disabled={locked}
+                disabled={
+                  locked || !availability.online || !['ready', 'warnings'].includes(project.status)
+                }
                 onClick={() => {
                   remember();
                   setDetail(null);
@@ -526,6 +594,7 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
           project={project}
           assets={assets}
           kind={operation}
+          online={availability.online}
           back={() => {
             setOperation(null);
             void refreshData();
@@ -608,219 +677,258 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
               </small>
             </div>
           </aside>
-          <main className={s.work}>
-            <div className={s.workHeading}>
-              <div>
-                <small>素材工作臺 ／ {group ? '自訂群組' : '原始資料夾'}</small>
-                <h1>
-                  {currentGroup?.name || folder.replace(/^img\//, '') || '全部素材'}{' '}
-                  <span>{filtered.length} 張素材</span>
-                </h1>
-              </div>
-              <div className={s.headingActions}>
-                {group && <button onClick={() => setGroupAction('delete')}>群組選單 · 刪除</button>}
-                <button
-                  aria-expanded={!collapsed}
-                  aria-controls="workbench-toolbar"
-                  onClick={() => setCollapsed((c) => !c)}
-                >
-                  {collapsed ? '⌄ 展開工具列' : '⌃ 收合工具列'}
-                </button>
-              </div>
-            </div>
-            {!collapsed && (
-              <div id="workbench-toolbar" className={s.toolbar}>
-                <input
-                  aria-label="搜尋檔名"
-                  placeholder="⌕  搜尋檔名…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <select
-                  aria-label="狀態篩選"
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                >
-                  <option value="all">全部狀態</option>
-                  <option value="pending">待套用</option>
-                  <option value="warnings">有注意事項</option>
-                  <option value="empty">尚未替換</option>
-                  <option value="deployed">已套用</option>
-                </select>
-                <select
-                  aria-label="預覽背景"
-                  value={background}
-                  onChange={(e) => setBackground(e.target.value)}
-                >
-                  <option value="checker">棋盤格</option>
-                  <option value="white">白色</option>
-                  <option value="black">黑色</option>
-                  <option value="custom">自訂</option>
-                </select>
-                {background === 'custom' && (
-                  <input
-                    type="color"
-                    aria-label="自訂背景色"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                  />
-                )}
-                <div className={s.toolbarRight}>
-                  <button className={s.primary} onClick={() => setBatch(true)}>
-                    <Icon name="upload" />
-                    批量匯入圖片
+          {batch ? (
+            <BatchPanel
+              projectId={project.id}
+              assets={assets}
+              initialFiles={batchFiles}
+              onBusy={setBatchBusy}
+              close={() => {
+                setBatch(false);
+                setBatchBusy(false);
+                setBatchFiles(null);
+              }}
+              done={() => void refreshData()}
+            />
+          ) : (
+            <main className={s.work}>
+              {!availability.online && (
+                <section role="alert" className={s.warning}>
+                  <p>{availability.error || '正在檢查遊戲位置…'} 工具內已保存的圖片仍可查看。</p>
+                  <button disabled={busy} onClick={() => setSettings(true)}>
+                    重新連結遊戲位置
                   </button>
+                </section>
+              )}
+              {!['ready', 'warnings'].includes(project.status) && (
+                <section role="status" className={s.warning}>
+                  已保留掃描結果，可稍後繼續；目前尚無法套用到遊戲。
+                </section>
+              )}
+             
+              <div className={s.workHeading}>
+                <div>
+                  <small>素材工作臺 ／ {group ? '自訂群組' : '原始資料夾'}</small>
+                  <h1>
+                    {currentGroup?.name || folder.replace(/^img\//, '') || '全部素材'}{' '}
+                    <span>{filtered.length} 張素材</span>
+                  </h1>
+                </div>
+                <div className={s.headingActions}>
+                  {group && (
+                    <button onClick={() => setGroupAction('delete')}>群組選單 · 刪除</button>
+                  )}
                   <button
-                    onClick={() => {
-                      setExportScope(selected.length ? 'selected' : 'current');
-                      setExporting(true);
-                    }}
+                    aria-expanded={!collapsed}
+                    aria-controls="workbench-toolbar"
+                    onClick={() => setCollapsed((c) => !c)}
                   >
-                    ⇩ 匯出
+                    {collapsed ? '⌄ 展開工具列' : '⌃ 收合工具列'}
                   </button>
                 </div>
               </div>
-            )}
-            <div className={s.selectionBar}>
-              <label>
-                <input
-                  type="checkbox"
-                  aria-label="全選目前篩選結果"
-                  checked={allSelected}
-                  onChange={(e) => setSelected(e.target.checked ? eligible.map((a) => a.id) : [])}
-                />
-                已選取 {selected.length} 張
-              </label>
-              <div>
-                <button
-                  disabled={!selected.length || !groups.length}
-                  onClick={() => {
-                    setTargetGroup(group || groups[0]?.id || '');
-                    setGroupAction('add');
-                  }}
-                >
-                  加入群組
-                </button>
-                {group && (
-                  <button disabled={!selected.length} onClick={() => setGroupAction('remove')}>
-                    從目前群組移除
-                  </button>
-                )}
-                {collapsed && (
-                  <button
-                    onClick={() => {
-                      setExportScope(selected.length ? 'selected' : 'current');
-                      setExporting(true);
-                    }}
+              {!collapsed && (
+                <div id="workbench-toolbar" className={s.toolbar}>
+                  <input
+                    aria-label="搜尋檔名"
+                    placeholder="⌕  搜尋檔名…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  <select
+                    aria-label="狀態篩選"
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
                   >
-                    匯出
-                  </button>
-                )}
-              </div>
-            </div>
-            <div className={s.tableHeader}>
-              <span />
-              <span>原始圖片 · 固定基準</span>
-              <span>目前替換圖片</span>
-              <span>操作</span>
-            </div>
-            <div
-              ref={list}
-              className={s.list}
-              data-testid="asset-list"
-              data-bg={background}
-              style={{ '--preview-color': color } as React.CSSProperties}
-            >
-              {shown.map((a) => {
-                const st = states[a.id],
-                  v = st?.versions.find((v) => v.id === st.active),
-                  deployed = st?.versions.find((v) => v.id === st.deployed);
-                return (
-                  <article key={a.id} className={s.row}>
+                    <option value="all">全部狀態</option>
+                    <option value="pending">待套用</option>
+                    <option value="warnings">有注意事項</option>
+                    <option value="empty">尚未替換</option>
+                    <option value="deployed">已套用</option>
+                  </select>
+                  <select
+                    aria-label="預覽背景"
+                    value={background}
+                    onChange={(e) => setBackground(e.target.value)}
+                  >
+                    <option value="checker">棋盤格</option>
+                    <option value="white">白色</option>
+                    <option value="black">黑色</option>
+                    <option value="custom">自訂</option>
+                  </select>
+                  {background === 'custom' && (
                     <input
-                      type="checkbox"
-                      aria-label={'選取 ' + a.path}
-                      disabled={!!a.error}
-                      checked={selected.includes(a.id)}
-                      onChange={(e) =>
-                        setSelected((ids) =>
-                          e.target.checked ? [...ids, a.id] : ids.filter((id) => id !== a.id),
-                        )
-                      }
+                      type="color"
+                      aria-label="自訂背景色"
+                      value={color}
+                      onChange={(e) => setColor(e.target.value)}
                     />
-                    <div className={s.assetCell}>
-                      <Thumbnail asset={a} />
-                      <div>
-                        <strong>{a.path.split('/').pop()}</strong>
-                        <small>{a.error || `${a.width} × ${a.height} · PNG`}</small>
-                        <small className={s.assetPath}>{a.path}</small>
-                      </div>
-                    </div>
-                    {v ? (
-                      <div className={s.assetCell}>
-                        <Thumbnail asset={a} version={v.id} />
-                        <div>
-                          <strong className={v.id === st.deployed ? s.success : s.warning}>
-                            V{v.number} · {v.id === st.deployed ? '已套用' : '待套用'}
-                          </strong>
-                          <small className={v.differences === '[]' ? s.success : s.warning}>
-                            {v.differences === '[]' ? '✓ 圖片規格一致' : '⚠ 已接受圖片差異'}
-                          </small>
-                          <small>
-                            遊戲 {deployed ? 'V' + deployed.number : '原圖'} → 選用 V{v.number}
-                          </small>
-                          <small>{st.versions.length} 筆上傳紀錄</small>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className={s.empty}>
-                        <Icon name="image" />
-                        <span>尚未選用</span>
-                        <small>{deployed ? '遊戲仍為 V' + deployed.number : '無替換版本'}</small>
-                      </div>
-                    )}
+                  )}
+                  <div className={s.toolbarRight}>
+                    <button className={s.primary} onClick={() => setBatch(true)}>
+                      <Icon name="upload" />
+                      批量匯入圖片
+                    </button>
                     <button
                       onClick={() => {
-                        remember();
-                        setDetail(a);
+                        setExportScope(selected.length ? 'selected' : 'current');
+                        setExporting(true);
                       }}
                     >
-                      詳細內容 →
+                      ⇩ 匯出
                     </button>
-                  </article>
-                );
-              })}
-              {!shown.length && <div className={s.blank}>目前範圍沒有素材</div>}
-            </div>
-            <div className={s.pager}>
-              <span>
-                顯示 {shown.length} / {filtered.length} 張素材
-              </span>
-              <div>
-                <button
-                  disabled={page === 0}
-                  onClick={() => {
-                    setPage((p) => p - 1);
-                    list.current?.scrollTo(0, 0);
-                  }}
-                >
-                  上一頁
-                </button>
-                <span>
-                  {page + 1} / {Math.max(1, Math.ceil(filtered.length / 30))}
-                </span>
-                <button
-                  disabled={(page + 1) * 30 >= filtered.length}
-                  onClick={() => {
-                    setPage((p) => p + 1);
-                    list.current?.scrollTo(0, 0);
-                  }}
-                >
-                  下一頁
-                </button>
+                  </div>
+                </div>
+              )}
+              <div className={s.selectionBar}>
+                <label>
+                  <input
+                    type="checkbox"
+                    aria-label="全選目前篩選結果"
+                    checked={allSelected}
+                    onChange={(e) => setSelected(e.target.checked ? eligible.map((a) => a.id) : [])}
+                  />
+                  已選取 {selected.length} 張
+                </label>
+                <div>
+                  <button
+                    disabled={!selected.length || !groups.length}
+                    onClick={() => {
+                      setTargetGroup(group || groups[0]?.id || '');
+                      setGroupAction('add');
+                    }}
+                  >
+                    加入群組
+                  </button>
+                  {group && (
+                    <button disabled={!selected.length} onClick={() => setGroupAction('remove')}>
+                      從目前群組移除
+                    </button>
+                  )}
+                  {collapsed && (
+                    <button
+                      onClick={() => {
+                        setExportScope(selected.length ? 'selected' : 'current');
+                        setExporting(true);
+                      }}
+                    >
+                      匯出
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          </main>
+              <div className={s.tableHeader}>
+                <span />
+                <span>原始圖片 · 固定基準</span>
+                <span>目前替換圖片</span>
+                <span>操作</span>
+              </div>
+              <div
+                ref={list}
+                className={s.list}
+                data-testid="asset-list"
+                data-bg={background}
+                style={{ '--preview-color': color } as React.CSSProperties}
+              >
+                {shown.map((a) => {
+                  const st = states[a.id],
+                    v = st?.versions.find((v) => v.id === st.active),
+                    deployed = st?.versions.find((v) => v.id === st.deployed);
+                  return (
+                    <article key={a.id} className={s.row}>
+                      <input
+                        type="checkbox"
+                        aria-label={'選取 ' + a.path}
+                        disabled={!!a.error}
+                        checked={selected.includes(a.id)}
+                        onChange={(e) =>
+                          setSelected((ids) =>
+                            e.target.checked ? [...ids, a.id] : ids.filter((id) => id !== a.id),
+                          )
+                        }
+                      />
+                      <div className={s.assetCell}>
+                        <Thumbnail asset={a} />
+                        <div>
+                          <strong>{a.path.split('/').pop()}</strong>
+                          <small>{a.error || `${a.width} × ${a.height} · PNG`}</small>
+                          <small className={s.assetPath}>{a.path}</small>
+                        </div>
+                      </div>
+                      {v ? (
+                        <div className={s.assetCell}>
+                          <Thumbnail asset={a} version={v.id} />
+                          <div>
+                            <strong className={v.id === st.deployed ? s.success : s.warning}>
+                              V{v.number} · {v.id === st.deployed ? '已套用' : '待套用'}
+                            </strong>
+                            <small className={v.differences === '[]' ? s.success : s.warning}>
+                              {v.differences === '[]' ? '✓ 圖片規格一致' : '⚠ 已接受圖片差異'}
+                            </small>
+                            <small>
+                              遊戲 {deployed ? 'V' + deployed.number : '原圖'} → 選用 V{v.number}
+                            </small>
+                            <small>{st.versions.length} 筆上傳紀錄</small>
+                          </div>
+                        </div>
+                      ) : deployed ? (
+                        <div className={s.assetCell}>
+                          <Thumbnail asset={a} />
+                          <div>
+                            <strong className={s.warning}>原圖 · 待套用</strong>
+                            <small>遊戲 V{deployed.number} → 原圖</small>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={s.empty}>
+                          <Icon name="image" />
+                          <span>尚未選用</span>
+                          <small>無替換版本</small>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => {
+                          remember();
+                          setDetail(a);
+                        }}
+                      >
+                        詳細內容 →
+                      </button>
+                    </article>
+                  );
+                })}
+                {!shown.length && <div className={s.blank}>目前範圍沒有素材</div>}
+              </div>
+              <div className={s.pager}>
+                <span>
+                  顯示 {shown.length} / {filtered.length} 張素材
+                </span>
+                <div>
+                  <button
+                    disabled={page === 0}
+                    onClick={() => {
+                      setPage((p) => p - 1);
+                      list.current?.scrollTo(0, 0);
+                    }}
+                  >
+                    上一頁
+                  </button>
+                  <span>
+                    {page + 1} / {Math.max(1, Math.ceil(filtered.length / 30))}
+                  </span>
+                  <button
+                    disabled={(page + 1) * 30 >= filtered.length}
+                    onClick={() => {
+                      setPage((p) => p + 1);
+                      list.current?.scrollTo(0, 0);
+                    }}
+                  >
+                    下一頁
+                  </button>
+                </div>
+              </div>
+            </main>
+          )}
         </div>
       )}
       <footer className={s.statusBar} role="status">
@@ -831,6 +939,61 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
           <button onClick={() => void window.catalog.cancel()}>取消掃描</button>
         )}
       </footer>
+      {scanPlan && project && (
+        <Modal title="確認掃描差異" busy={busy} close={() => setScanPlan(null)}>
+          <p>只保存下列新增路徑。既有變更不覆寫基準，來源缺失不刪除工具資料。</p>
+          {(['added', 'changed', 'missing'] as const).map((kind) => (
+            <details key={kind} open>
+              <summary>
+                {{ added: '新增', changed: '既有變更／無可用基準', missing: '來源缺失' }[kind]}（
+                {scanPlan[kind].length}）
+              </summary>
+              <ul>
+                {scanPlan[kind].map((path) => (
+                  <li key={path}>{path}</li>
+                ))}
+              </ul>
+            </details>
+          ))}
+          <div style={{display:'flex', gap:5}}>
+
+          <button disabled={busy} onClick={() => setScanPlan(null)}>
+            取消
+          </button>
+          
+          <button
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void window.catalog
+                .scanCommit(project.id, scanPlan.token)
+                .then(async (r) => {
+                  const updated = value(r);
+                  setProject(updated);
+                  setScanPlan(null);
+                  await refresh();
+                  await refreshData(updated.id);
+                  setMessage(
+                    updated.status === 'cancelled'
+                      ? '已保留掃描結果，可稍後繼續；目前尚無法套用到遊戲。'
+                      : '掃描結果已保存',
+                  );
+                })
+                .catch((e) => {
+                  setMessage(String(e));
+                  setScanPlan(null);
+                })
+                .finally(() => {
+                  setBusy(false);
+                  setProgress(null);
+                });
+            }}
+          >
+            確認新增／繼續掃描
+          </button>
+          </div>
+        </Modal>
+      )}
       {exporting && (
         <Modal title="匯出圖片" close={() => setExporting(false)} busy={busy}>
           <label>
@@ -893,17 +1056,6 @@ export default function Workbench({ diagnostics }: { diagnostics: () => void }) 
           </div>
           <p>{message}</p>
         </Modal>
-      )}
-      {project && batch && (
-        <BatchPanel
-          projectId={project.id}
-          assets={assets}
-          close={() => setBatch(false)}
-          done={() => {
-            void refreshData();
-            setMessage('批量匯入已保存，尚未寫入遊戲');
-          }}
-        />
       )}
       {groupAction && (
         <Modal

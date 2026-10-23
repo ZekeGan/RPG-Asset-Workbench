@@ -1,4 +1,8 @@
-# 目前實作狀態：0.4.0
+# 目前實作狀態：0.5 核心開發（尚未升版／發布）
+
+使用者已授權核心範圍。新增回原圖待套用判定、掃描差異確認／續掃、位置狀態與重連驗證、唯一檔名配對、批量獨立頁與拖放。保留原始基準、active/deployed 分離及既有操作日誌；新增功能的實作、Windows fixture 證據與限制見 [DEVELOPMENT_0.5.md](DEVELOPMENT_0.5.md)。package 仍為 0.4.0；下方屬歷史記錄。
+
+# 0.4.0 實作記錄
 
 新增 codec、groups、batch、write-guard、project-drafts 服務，以及 ProjectDeletion 服務層（未接入口）。主程序僅接受 ID／短期 token；原生資料夾選擇後先辨識，明確確認才建立，提交前再核對設定。加密金鑰不回傳 renderer。System.json 辨識與 hash 使用同一次穩定讀取。
 

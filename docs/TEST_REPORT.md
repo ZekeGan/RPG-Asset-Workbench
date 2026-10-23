@@ -1,3 +1,11 @@
+# 0.5 核心開發驗證 — 2026-10-23
+
+Windows x64、Node 24.13.0、npm 11.6.2、Electron 45.0.0。package 版號仍為 0.4.0，尚未發布新版本。
+
+本輪 typecheck、5 檔 70 項自動測試、build、Electron 原生模組重建通過。隔離自製 MZ fixture 的真實 Electron main/preload/renderer IPC 通過，含回原圖、增量、離線／重連、配對獨立頁與真實 File 橋接；原生選檔使用測試替身，未測檔案總管拖放手勢或真實遊戲四格。
+
+format:check 只有未修改的 .prettierrc.json、INTEGRATION_MANIFEST.json 格式警告，全專案格式檢查不記 PASS。完整範圍、限制及重跑步驟見 [開發記錄](DEVELOPMENT_0.5.md)；Electron 證據見 [ui-0.5.json](evidence/ui-0.5.json)。以下保留歷史結果。
+
 # 0.4.0 驗證紀錄 — 2026-10-22
 
 環境：Linux x86_64、Node 24.19.0；自製 PNG 與 MV/MZ fixture，未使用私人遊戲素材。

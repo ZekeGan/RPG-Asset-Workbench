@@ -107,6 +107,10 @@ else
           'operation:recover',
           'catalog:create',
           'catalog:choose',
+          'catalog:scan-plan',
+          'catalog:scan-commit',
+          'manager:batch-drop',
+          'version:drop',
         ].includes(channel);
         if (mutation && taskBusy) return { ok: false, error: '另有操作正在執行，請稍候' };
         if (mutation) {
@@ -127,6 +131,20 @@ else
         }
       });
     handle('catalog:projects', () => getCatalog().list());
+    handle('catalog:availability', (id) => {
+      if (typeof id !== 'string') throw Error('專案 ID 無效');
+      return getCatalog().availability(id);
+    });
+    handle('catalog:scan-plan', (id) => {
+      if (typeof id !== 'string') throw Error('專案 ID 無效');
+      getOperations().assertEditable(id);
+      return getCatalog().scanPlan(id);
+    });
+    handle('catalog:scan-commit', (id, token) => {
+      if (typeof id !== 'string' || typeof token !== 'string') throw Error('參數無效');
+      getOperations().assertEditable(id);
+      return getCatalog().scanCommit(id, token);
+    });
     handle('catalog:assets', (id) => getCatalog().assets(id));
     handle('catalog:preview', (id) => getCatalog().preview(id));
     handle('catalog:progress', () => ({ ...getCatalog().progress }));
@@ -145,6 +163,24 @@ else
       return getCatalog().create(root, name, confirmed);
     });
     handle('version:state', (id) => getVersions().state(id));
+    handle('version:drop', async (id, paths) => {
+      if (
+        typeof id !== 'string' ||
+        !Array.isArray(paths) ||
+        paths.length !== 1 ||
+        typeof paths[0] !== 'string' ||
+        !paths[0]
+      )
+        throw Error('詳細頁只接受一張圖片');
+      editableAsset(id);
+      const bytes = await stableRead(paths[0]),
+        name = basename(paths[0]);
+      const checked = await getVersions().check(id, bytes, name),
+        token = randomUUID();
+      drafts.clear();
+      drafts.set(token, { assetId: id, bytes, name });
+      return { token, ...checked };
+    });
     handle('version:preview', (id, version) => {
       if (typeof id !== 'string' || (version !== null && typeof version !== 'string'))
         throw Error('參數無效');
@@ -276,6 +312,16 @@ else
       });
       if (selected.canceled) return null;
       return getBatch().choose(id, selected.filePaths[0]);
+    });
+    handle('manager:batch-drop', (id, paths) => {
+      if (
+        typeof id !== 'string' ||
+        !Array.isArray(paths) ||
+        paths.some((p) => typeof p !== 'string')
+      )
+        throw Error('拖放參數無效');
+      getOperations().assertEditable(id);
+      return getBatch().chooseFiles(id, paths);
     });
     handle('manager:batch-inspect', (token, id) => {
       if (typeof token !== 'string' || typeof id !== 'string') throw Error('參數無效');

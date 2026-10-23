@@ -1,5 +1,5 @@
 import { readdir, realpath } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pngPath } from './codec';
 import { Catalog, confined, stableRead } from './catalog';
@@ -42,7 +42,7 @@ export class BatchImports {
         } catch (err) {
           error = String(err);
         }
-        const matches = assets.filter((a) => pngPath(a.path) === path);
+        const matches = this.matches(assets, path);
         const token = randomUUID();
         this.files.set(token, { projectId, root, path, hash });
         files.push({
@@ -51,10 +51,57 @@ export class BatchImports {
           name: e.name,
           assetId: matches.length === 1 ? matches[0].id : null,
           error,
+          candidates: matches.map((a) => a.id),
         });
       }
     };
     await walk('');
+    return files;
+  }
+  private matches(assets: ReturnType<Catalog['assets']>, path: string) {
+    const normalize = (p: string) => p.replaceAll('\\', '/').normalize('NFC').toLowerCase();
+    const valid = assets.filter((a) => !a.error && a.hash);
+    const exact = valid.filter((a) => normalize(pngPath(a.path)) === normalize(path));
+    return exact.length
+      ? exact
+      : valid.filter((a) => normalize(basename(pngPath(a.path))) === normalize(basename(path)));
+  }
+  async chooseFiles(projectId: string, paths: string[]) {
+    this.clear();
+    if (
+      !Array.isArray(paths) ||
+      !paths.length ||
+      paths.length > 2000 ||
+      paths.some((p) => typeof p !== 'string' || !p)
+    )
+      throw Error('請提供 1–2000 張圖片');
+    const assets = this.catalog.assets(projectId),
+      files: BatchFile[] = [];
+    for (const selected of paths) {
+      const resolved = await realpath(selected),
+        root = dirname(resolved),
+        path = basename(resolved);
+      let hash: string | null = null,
+        error: string | null = null;
+      try {
+        hash = (await decodePng(await stableRead(await confined(root, path)), path)).sha256;
+      } catch (e) {
+        error = String(e);
+      }
+      const normalized = resolved.replaceAll('\\', '/');
+      const img = normalized.toLowerCase().lastIndexOf('/img/');
+      const matches = this.matches(assets, img < 0 ? path : normalized.slice(img + 1)),
+        token = randomUUID();
+      this.files.set(token, { projectId, root, path, hash });
+      files.push({
+        token,
+        path,
+        name: path,
+        assetId: matches.length === 1 ? matches[0].id : null,
+        candidates: matches.map((a) => a.id),
+        error,
+      });
+    }
     return files;
   }
   private async read(token: string) {

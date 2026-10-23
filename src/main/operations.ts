@@ -50,7 +50,7 @@ export class Operations {
       .filter((a) => !a.error)
       .filter((a) => {
         const s = this.versions.state(a.id);
-        return s.active !== null && s.active !== s.deployed;
+        return s.active !== s.deployed;
       })
       .map((a) => a.id);
   }
@@ -101,6 +101,8 @@ export class Operations {
     try {
       const project = this.catalog.list().find((p) => p.id === projectId);
       if (!project) throw Error('專案不存在');
+      if (kind === 'apply' && !['ready', 'warnings'].includes(project.status))
+        throw Error('掃描尚未完成，請先繼續掃描；目前無法套用到遊戲');
       await this.catalog.validateGame(projectId);
       const ids = kind === 'apply' ? this.pending(projectId) : selected;
       if (!ids.length || new Set(ids).size !== ids.length) throw Error('沒有可操作項目或選擇重複');
@@ -214,6 +216,7 @@ export class Operations {
     }
     const project = this.catalog.list().find((p) => p.id === op.projectId);
     if (!project) throw Error('專案不存在');
+    await this.catalog.validateGame(op.projectId);
     this.update(op.id, 'recovering');
     // Validate every backup and target before the first recovery write.
     const restore: Buffer[] = [];

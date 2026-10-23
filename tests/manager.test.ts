@@ -53,6 +53,98 @@ async function fixture() {
     batch: new BatchImports(catalog, versions),
   };
 }
+it('scan preview separates additions, changed and missing paths and never replaces a baseline', async () => {
+  const f = await fixture(),
+    before = f.catalog.assets(f.p.id);
+  await writeFile(join(f.game, 'img/pictures/new.png'), f.bytes);
+  await writeFile(join(f.game, before[0].path), 'external');
+  await rm(join(f.game, before[1].path));
+  const plan = await f.catalog.scanPlan(f.p.id);
+  expect(plan.added).toEqual(['img/pictures/new.png']);
+  expect(plan.changed).toEqual([before[0].path]);
+  expect(plan.missing).toEqual([before[1].path]);
+  expect(f.catalog.assets(f.p.id)).toEqual(before);
+  await f.catalog.scanCommit(f.p.id, plan.token);
+  expect(f.catalog.assets(f.p.id)).toHaveLength(3);
+  for (const a of before) {
+    expect(f.catalog.assets(f.p.id).find((x) => x.id === a.id)).toEqual(a);
+    expect(await readFile(join(f.data, 'projects', f.p.id, 'originals', a.id + '.png'))).toEqual(
+      f.bytes,
+    );
+  }
+  await expect(f.catalog.scanCommit(f.p.id, plan.token)).rejects.toThrow('過期');
+});
+it('scan refuses a stale confirmation and does not duplicate already appended assets', async () => {
+  const f = await fixture();
+  await writeFile(join(f.game, 'img/pictures/new.png'), f.bytes);
+  const plan = await f.catalog.scanPlan(f.p.id);
+  await writeFile(join(f.game, 'img/pictures/new.png'), 'changed');
+  await expect(f.catalog.scanCommit(f.p.id, plan.token)).rejects.toThrow('變更');
+  expect(f.catalog.assets(f.p.id)).toHaveLength(2);
+  await writeFile(join(f.game, 'img/pictures/new.png'), f.bytes);
+  await f.catalog.scanCommit(f.p.id, (await f.catalog.scanPlan(f.p.id)).token);
+  expect((await f.catalog.scanPlan(f.p.id)).added).toEqual([]);
+});
+it('reopened incomplete project resumes after move, validates saved originals and blocks early apply', async () => {
+  const f = await fixture();
+  f.store.db.prepare("UPDATE projects SET status='cancelled' WHERE id=?").run(f.p.id);
+  await writeFile(join(f.game, 'img/pictures/new.png'), f.bytes);
+  const moved = join(f.root, 'moved');
+  await cp(f.game, moved, { recursive: true });
+  const reopened = new Catalog(f.store, f.data);
+  await reopened.relink(f.p.id, moved);
+  const ops = new Operations(f.store, reopened, f.versions, f.data);
+  await expect(ops.execute(f.p.id, 'apply')).rejects.toThrow('掃描尚未完成');
+  const result = await reopened.scanCommit(f.p.id, (await reopened.scanPlan(f.p.id)).token);
+  expect(result.status).toBe('ready');
+  expect(reopened.assets(f.p.id)).toHaveLength(3);
+  const saved = reopened.assets(f.p.id)[0];
+  await writeFile(join(f.data, 'projects', f.p.id, 'originals', saved.id + '.png'), 'corrupt');
+  await expect(reopened.scanPlan(f.p.id)).rejects.toThrow('損壞');
+});
+it('offline project keeps saved previews and refuses game writes', async () => {
+  const f = await fixture();
+  const { rename } = await import('node:fs/promises');
+  await rename(f.game, join(f.root, 'moved'));
+  expect((await f.catalog.availability(f.p.id)).online).toBe(false);
+  expect((await f.catalog.preview(f.assets[0].id)).width).toBe(12);
+  await expect(
+    new Operations(f.store, f.catalog, f.versions, f.data).execute(f.p.id, 'apply'),
+  ).rejects.toThrow();
+});
+it('initial basename pairing handles unique names, ambiguous names and invalid dropped formats', async () => {
+  const f = await fixture();
+  await writeFile(join(f.game, 'img/pictures/unique.png'), f.bytes);
+  await f.catalog.scanCommit(f.p.id, (await f.catalog.scanPlan(f.p.id)).token);
+  const input = join(f.root, 'input');
+  await mkdir(input);
+  await writeFile(join(input, 'UNIQUE.png'), f.bytes);
+  await writeFile(join(input, 'a.png'), f.bytes);
+  await writeFile(join(input, 'bad.jpg'), f.bytes);
+  const rows = await f.batch.chooseFiles(
+    f.p.id,
+    ['UNIQUE.png', 'a.png', 'bad.jpg'].map((p) => join(input, p)),
+  );
+  expect(rows[0].assetId).toBe(
+    f.catalog.assets(f.p.id).find((a) => a.path.endsWith('/unique.png'))?.id,
+  );
+  expect(rows[1].assetId).toBeNull();
+  expect(rows[1].candidates).toHaveLength(2);
+  expect(rows[2].error).toBeTruthy();
+});
+it('incremental scan compares deployed bytes rather than treating replacement as a new original', async () => {
+  const f = await fixture(),
+    a = f.assets[0],
+    edit = await sharp(f.bytes).negate().png().toBuffer();
+  await f.versions.importBatch([{ assetId: a.id, bytes: edit, name: 'edit.png', accepted: true }]);
+  await new Operations(f.store, f.catalog, f.versions, f.data).execute(f.p.id, 'apply');
+  const plan = await f.catalog.scanPlan(f.p.id);
+  expect(plan.changed).toEqual([]);
+  expect(plan.added).toEqual([]);
+  expect(await readFile(join(f.data, 'projects', f.p.id, 'originals', a.id + '.png'))).toEqual(
+    f.bytes,
+  );
+});
 it('keeps one asset in multiple groups and removes associations without deleting bytes or history', async () => {
   const f = await fixture(),
     id = f.assets[0].id;
@@ -136,14 +228,16 @@ it('relinks an identical moved copy without changing baseline or version and rej
   await expect(f.catalog.relink(f.p.id, f.game)).rejects.toThrow('不一致');
   expect(f.catalog.list()[0].root).toBe(copy);
 });
-it('relink rejects extra assets and duplicate project destinations', async () => {
+it('relink verifies existing content, leaves extra assets for confirmed scan and rejects duplicate destinations', async () => {
   const f = await fixture(),
     copy = join(f.root, 'copy');
   await cp(f.game, copy, { recursive: true });
   await writeFile(join(copy, 'img/pictures/new.png'), f.bytes);
-  await expect(f.catalog.relink(f.p.id, copy)).rejects.toThrow('清單');
-  await f.catalog.create(copy, 'another', true);
-  await expect(f.catalog.relink(f.p.id, copy)).rejects.toThrow('其他專案');
+  await f.catalog.relink(f.p.id, copy);
+  expect(f.catalog.assets(f.p.id)).toHaveLength(2);
+  expect((await f.catalog.scanPlan(f.p.id)).added).toEqual(['img/pictures/new.png']);
+  await f.catalog.create(f.game, 'another', true);
+  await expect(f.catalog.relink(f.p.id, f.game)).rejects.toThrow('其他專案');
 });
 import { WriteGuard } from '../src/main/write-guard';
 it('storage failure blocks writes across restart until a real DB and disk probe succeeds', async () => {

@@ -57,6 +57,27 @@ async function fixture(engine: 'MV' | 'MZ') {
   return { root, game, data, out, png, raw, store, catalog, project, versions, assets };
 }
 it.each(['MV', 'MZ'] as const)(
+  '%s selecting original applies exact saved ciphertext and preserves V1 history',
+  async (engine) => {
+    const f = await fixture(engine),
+      ops = new Operations(f.store, f.catalog, f.versions, f.data);
+    const edit = await sharp(f.png).negate().png().toBuffer();
+    await f.versions.importBatch(
+      f.assets.map((a) => ({ assetId: a.id, bytes: edit, name: 'edit.png', accepted: true })),
+    );
+    await ops.execute(f.project.id, 'apply');
+    for (const a of f.assets) await f.versions.select(a.id, null);
+    for (const a of f.assets)
+      expect(await readFile(join(f.game, a.path))).toEqual(fixtureEncode(edit));
+    await ops.execute(f.project.id, 'apply');
+    for (const a of f.assets) {
+      expect(await readFile(join(f.game, a.path))).toEqual(f.raw);
+      expect(f.versions.state(a.id).deployed).toBeNull();
+      expect(f.versions.state(a.id).versions).toHaveLength(1);
+    }
+  },
+);
+it.each(['MV', 'MZ'] as const)(
   '%s encrypted scan preserves raw originals, exports PNG, applies and restores exact encrypted bytes',
   async (engine) => {
     const f = await fixture(engine);

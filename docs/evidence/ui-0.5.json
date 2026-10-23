@@ -1,0 +1,24 @@
+{
+  "platform": "win32",
+  "electron": "45.0.0",
+  "scope": "Real Electron main/preload/renderer; generated unencrypted MZ fixture; native dialogs stubbed; real File objects injected via CDP; no real game or OS drag gesture",
+  "originalApply": true,
+  "scan": true,
+  "offlineAndRelink": true,
+  "batchIndependentPage": true,
+  "fileBridge": true,
+  "multiFileDetailRejected": true,
+  "layouts": [
+    {
+      "width": 1120,
+      "height": 780,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 800,
+      "height": 600,
+      "horizontalOverflow": false
+    }
+  ],
+  "errors": []
+}

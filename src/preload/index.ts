@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { Bridge, CatalogBridge } from '../shared/contracts';
 const api: Bridge = {
   load: () => ipcRenderer.invoke('poc:load'),
@@ -8,6 +8,9 @@ const api: Bridge = {
 contextBridge.exposeInMainWorld('poc', Object.freeze(api));
 
 const catalog: CatalogBridge = {
+  availability: (id) => ipcRenderer.invoke('catalog:availability', id),
+  scanPlan: (id) => ipcRenderer.invoke('catalog:scan-plan', id),
+  scanCommit: (id, token) => ipcRenderer.invoke('catalog:scan-commit', id, token),
   projects: () => ipcRenderer.invoke('catalog:projects'),
   choose: () => ipcRenderer.invoke('catalog:choose'),
   create: (token, name, confirmed) => ipcRenderer.invoke('catalog:create', token, name, confirmed),
@@ -20,6 +23,12 @@ contextBridge.exposeInMainWorld('catalog', Object.freeze(catalog));
 
 import type { VersionBridge } from '../shared/contracts';
 const versions: VersionBridge = {
+  drop: (id, files) =>
+    ipcRenderer.invoke(
+      'version:drop',
+      id,
+      files.map((f) => webUtils.getPathForFile(f)),
+    ),
   state: (id) => ipcRenderer.invoke('version:state', id),
   choose: (id) => ipcRenderer.invoke('version:choose', id),
   commit: (token, accepted) => ipcRenderer.invoke('version:commit', token, accepted),
@@ -43,6 +52,12 @@ contextBridge.exposeInMainWorld('operations', Object.freeze(operations));
 
 import type { ManagerBridge } from '../shared/contracts';
 const manager: ManagerBridge = {
+  dropBatch: (id, files) =>
+    ipcRenderer.invoke(
+      'manager:batch-drop',
+      id,
+      files.map((f) => webUtils.getPathForFile(f)),
+    ),
   storage: () => ipcRenderer.invoke('manager:storage'),
   retryStorage: () => ipcRenderer.invoke('manager:retry'),
   groups: (id) => ipcRenderer.invoke('manager:groups', id),

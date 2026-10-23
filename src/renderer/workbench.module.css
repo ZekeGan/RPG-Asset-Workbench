@@ -694,13 +694,41 @@
   user-select: none;
 }
 .batchTable {
-  max-height: 50vh;
   overflow: auto;
   margin-top: 16px;
+  flex: 1;
+  min-height: 0;
+}
+.batchPage {
+  padding: 20px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.dropZone {
+  border: 1px dashed #657d79;
+  border-radius: 6px;
+  text-align: center;
+  padding: 14px;
+}
+.batchTarget {
+  min-width: 0;
+}
+.batchTarget select {
+  width: 100%;
+  margin-top: 8px;
+}
+.batchRow img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 8px;
 }
 .batchRow {
   display: grid;
-  grid-template-columns: 1fr 1fr 100px;
+  grid-template-columns: minmax(90px, 1fr) minmax(110px, 1.2fr) minmax(80px, 1fr) 70px;
   gap: 12px;
   align-items: center;
   border-bottom: 1px solid var(--line);
