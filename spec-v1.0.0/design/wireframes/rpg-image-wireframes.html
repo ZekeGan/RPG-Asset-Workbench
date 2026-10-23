@@ -1,0 +1,91 @@
+<div id="rpg-wireframes">
+  <nav class="wf-tabs" aria-label="Wireframe 畫面切換"></nav>
+  <div class="wf-window">
+    <header class="wf-chrome"><span>RPG Maker 圖片管理器</span><span>Wireframe · 示意資料</span></header>
+    <main class="wf-content" aria-live="polite"></main>
+  </div>
+</div>
+<style>
+#rpg-wireframes{--wf-bg:light-dark(#fff,#202020);--wf-ink:light-dark(#242424,#ededed);--wf-line:light-dark(#aaa,#777);--wf-soft:light-dark(#f0f0f0,#303030);--wf-muted:light-dark(#595959,#bcbcbc);color:var(--wf-ink);font:14px/1.5 system-ui,sans-serif}
+#rpg-wireframes *{box-sizing:border-box}
+#rpg-wireframes button,#rpg-wireframes input,#rpg-wireframes select{font:inherit;color:inherit;background:var(--wf-bg);border:1px solid var(--wf-line);border-radius:3px;padding:7px 11px;max-width:100%}
+#rpg-wireframes button{cursor:inherit}
+#rpg-wireframes button[aria-current="page"],#rpg-wireframes .wf-primary{background:var(--wf-ink);color:var(--wf-bg)}
+#rpg-wireframes button:disabled{opacity:.5}
+#rpg-wireframes .wf-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+#rpg-wireframes .wf-window{border:1px solid var(--wf-line);background:var(--wf-bg)}
+#rpg-wireframes .wf-chrome{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 18px;border-bottom:1px solid var(--wf-line);background:var(--wf-soft)}
+#rpg-wireframes .wf-content{min-height:530px}
+#rpg-wireframes .wf-page{padding:24px}
+#rpg-wireframes h2{font-size:20px;font-weight:500;margin:0}
+#rpg-wireframes h3{font-size:15px;font-weight:500;margin:0 0 12px}
+#rpg-wireframes p{margin:6px 0 16px}
+#rpg-wireframes .wf-muted{color:var(--wf-muted);font-size:12px}
+#rpg-wireframes .wf-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+#rpg-wireframes .wf-between{justify-content:space-between}
+#rpg-wireframes .wf-top{padding:16px;border-bottom:1px solid var(--wf-line)}
+#rpg-wireframes .wf-projects{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:24px}
+#rpg-wireframes .wf-project{border:1px solid var(--wf-line);padding:18px}
+#rpg-wireframes .wf-project p{overflow-wrap:anywhere}
+#rpg-wireframes .wf-project button{margin-top:12px}
+#rpg-wireframes .wf-shell{display:grid;grid-template-columns:190px minmax(0,1fr)}
+#rpg-wireframes aside{padding:16px 12px;border-right:1px solid var(--wf-line);background:var(--wf-soft)}
+#rpg-wireframes aside button{display:block;text-align:left;width:100%;margin-bottom:5px;background:transparent}
+#rpg-wireframes aside h3{margin-top:20px}
+#rpg-wireframes .wf-work{min-width:0;padding:16px}
+#rpg-wireframes .wf-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+#rpg-wireframes .wf-tools input{width:165px}
+#rpg-wireframes .wf-head,#rpg-wireframes .wf-pair{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(0,1fr);gap:12px}
+#rpg-wireframes .wf-head{padding:8px 0;border-bottom:1px solid var(--wf-line)}
+#rpg-wireframes .wf-pair{padding:14px 0;border-bottom:1px solid var(--wf-line);align-items:start}
+#rpg-wireframes .wf-pair input{margin-top:8px}
+#rpg-wireframes .wf-thumb{height:100px;border:1px solid var(--wf-line);display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:8px;isolation:isolate;background-color:var(--wf-soft)}
+#rpg-wireframes .wf-thumb:before,#rpg-wireframes .wf-thumb:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(to top right,transparent calc(50% - .5px),var(--wf-line) 50%,transparent calc(50% + .5px))}
+#rpg-wireframes .wf-thumb:after{transform:scaleX(-1)}
+#rpg-wireframes .wf-thumb span{padding:3px 9px;background:var(--wf-bg);border:1px solid var(--wf-line)}
+#rpg-wireframes .wf-thumb.wf-empty{border-style:dashed;background:var(--wf-bg)}
+#rpg-wireframes .wf-empty:before,#rpg-wireframes .wf-empty:after{display:none}
+#rpg-wireframes .wf-name{font-weight:500;overflow-wrap:anywhere}
+#rpg-wireframes .wf-note{border:1px dashed var(--wf-line);padding:10px 12px;margin:16px 0;background:var(--wf-soft)}
+#rpg-wireframes .wf-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:22px}
+#rpg-wireframes .wf-form{max-width:580px;display:grid;gap:18px;margin:24px 0}
+#rpg-wireframes .wf-field{display:grid;gap:6px}
+#rpg-wireframes .wf-field input{width:100%}
+#rpg-wireframes .wf-table-wrap{overflow:auto}
+#rpg-wireframes table{width:100%;border-collapse:collapse;margin:20px 0;text-align:left}
+#rpg-wireframes th,#rpg-wireframes td{padding:12px 9px;border-bottom:1px solid var(--wf-line);vertical-align:top;overflow-wrap:anywhere}
+#rpg-wireframes th{font-weight:500;background:var(--wf-soft)}
+#rpg-wireframes .wf-drop{padding:25px;border:1px dashed var(--wf-line);text-align:center;margin:18px 0}
+#rpg-wireframes .wf-detail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;margin-top:20px}
+#rpg-wireframes .wf-checker .wf-thumb:not(.wf-empty){background-image:conic-gradient(var(--wf-bg) 25%,var(--wf-soft) 0 50%,var(--wf-bg) 0 75%,var(--wf-soft) 0);background-size:20px 20px}
+#rpg-wireframes .wf-white .wf-thumb:not(.wf-empty){background:#fff}
+#rpg-wireframes .wf-black .wf-thumb:not(.wf-empty){background:#000}
+@media(max-width:700px){#rpg-wireframes .wf-shell{grid-template-columns:1fr}#rpg-wireframes aside{border-right:0;border-bottom:1px solid var(--wf-line)}#rpg-wireframes aside button{display:inline-block;width:auto;margin-right:4px}#rpg-wireframes .wf-page{padding:16px}#rpg-wireframes .wf-top{padding:12px}#rpg-wireframes .wf-work{padding:12px}#rpg-wireframes .wf-pair,#rpg-wireframes .wf-head{gap:7px;grid-template-columns:20px minmax(0,1fr) minmax(0,1fr)}#rpg-wireframes .wf-detail{grid-template-columns:1fr}}
+</style>
+<script>
+(()=>{
+const root=document.getElementById('rpg-wireframes');
+const content=root.querySelector('.wf-content');
+const names=['專案首頁','建立專案','素材工作台','批量匯出','匯入配對','套用確認','還原遊戲'];
+let current=2,applied=false;
+const action=(label,page,primary=false)=>`<button type="button" class="cursor-interaction ${primary?'wf-primary':''}" data-page="${page}">${label}</button>`;
+const footer=(label,target)=>`<div class="wf-footer">${action('返回工作台',2)}${action(label,target,true)}</div>`;
+const thumb=(label,empty=false)=>`<div class="wf-thumb ${empty?'wf-empty':''}"><span>${label}</span></div>`;
+const pair=(i,file,modified,warning=false)=>`<div class="wf-pair" data-file="${file}" data-status="${warning?'warning':modified?'pending':'empty'}"><input type="checkbox" aria-label="選取 ${file}" ${i<3?'checked':''}><div>${thumb('原圖 '+i)}<div class="wf-name">${file}</div><div class="wf-muted">img/pictures/${file}<br>1024 × 768 · 4:3 · PNG · 有透明通道</div></div><div>${thumb(modified?'修改圖片 '+i:'尚未匯入',!modified)}${modified?`<div>${warning?'⚠ 尺寸不同':'✓ 尺寸與透明通道一致'}</div><div class="wf-muted">${warning?'1200 × 768 · 25:16<br>原圖 1024 × 768 · 4:3':'1024 × 768 · 4:3'} · ${applied?'已套用':'待套用'}</div><button type="button" data-detail="${i}" class="cursor-interaction">查看對照</button>`:`<button type="button" data-page="4" class="cursor-interaction">拖入或選擇替換圖</button>`}</div></div>`;
+const pages=[
+()=>`<div class="wf-page"><div class="wf-row wf-between"><h2>遊戲專案</h2>${action('＋ 建立專案',1,true)}</div><p class="wf-muted">各專案的原圖、替換圖與工作進度獨立保存</p><div class="wf-projects">${['月影之旅','森林物語','最後的車站'].map((x,i)=>`<section class="wf-project"><h3>${x}</h3><p class="wf-muted">D:/Games/Game-${i+1}</p><p>${[128,84,256][i]} 張素材 · ${[2,6,0][i]} 張待套用</p><div class="wf-muted">上次編輯：${['今天','昨天','3 天前'][i]}</div><button type="button" data-project="${x}" class="cursor-interaction">繼續編輯 →</button></section>`).join('')}</div></div>`,
+()=>`<div class="wf-page"><h2>建立遊戲專案</h2><div class="wf-form"><label class="wf-field">專案名稱<input value="月影之旅" aria-label="專案名稱"></label><label class="wf-field">遊戲資料夾<input value="D:/Games/MoonJourney" aria-label="遊戲資料夾"></label><div class="wf-note">讀取圖片 → 保存原始基準 → 依遊戲資料夾分類</div></div><div class="wf-footer">${action('返回專案首頁',0)}${action('讀取並建立專案',2,true)}</div></div>`,
+()=>`<div class="wf-top"><div class="wf-row wf-between"><div class="wf-row">${action('切換專案',0)}<strong class="wf-project-title">月影之旅</strong><span class="wf-muted">已自動儲存</span></div><div class="wf-row">${action('匯入圖片',4)}${action('批量匯出',3)}${action('套用到遊戲',5,true)}${action('還原遊戲',6)}</div></div><div class="wf-muted">D:/Games/MoonJourney · 儲存進度不會修改遊戲</div></div><div class="wf-shell"><aside><h3>原始資料夾</h3><button type="button" data-folder="全部素材" class="cursor-interaction">全部素材（128）</button><button type="button" data-folder="img/pictures" class="cursor-interaction">▾ img / pictures（72）</button><button type="button" data-folder="img/characters" class="cursor-interaction">img / characters（32）</button><button type="button" data-folder="img/battlebacks1" class="cursor-interaction">img / battlebacks1（24）</button><h3>自訂群組</h3><button type="button" data-folder="角色 A 差分" class="cursor-interaction">角色 A 差分（3）</button><button type="button" data-folder="待修改素材" class="cursor-interaction">待修改素材（12）</button><button type="button" data-group class="cursor-interaction">＋ 建立群組</button><div class="wf-group-form" hidden><label>群組名稱<input aria-label="群組名稱" value="新群組"></label><button type="button" data-group-save class="cursor-interaction">加入已選圖片</button></div></aside><section class="wf-work wf-checker"><h3 class="wf-folder-title">img / pictures</h3><div class="wf-tools"><input type="search" placeholder="搜尋檔名" aria-label="搜尋檔名"><select aria-label="篩選狀態" data-filter><option value="all">全部狀態</option><option value="pending">待套用</option><option value="warning">有注意事項</option><option value="empty">尚未替換</option></select><label>背景 <select aria-label="預覽背景" data-background><option value="checker">棋盤格</option><option value="white">白色</option><option value="black">黑色</option><option value="custom">自訂顏色</option></select></label><input type="color" aria-label="自訂背景色" value="#bbbbbb" hidden></div><div class="wf-row wf-between"><label><input type="checkbox" checked data-all> 全選目前列表</label><div class="wf-row">${action('匯出選取圖片',3)}<button type="button" data-group class="cursor-interaction">加入群組</button></div></div><div class="wf-head"><span></span><span>原始圖片 · 固定基準</span><span>替換圖片 · 目前版本</span></div>${pair(1,'heroine_01.png',true)}${pair(2,'heroine_02.png',true,true)}${pair(3,'heroine_03.png',false)}<div class="wf-muted" style="margin-top:12px">目前顯示 3 張示意素材 · 2 張待套用 · 1 張需要檢查</div><div class="wf-detail-panel" hidden></div></section></div>`,
+()=>`<div class="wf-page"><h2>批量匯出圖片</h2><p class="wf-muted">月影之旅 / img / pictures</p><div class="wf-form"><label class="wf-field">匯出範圍<select><option>目前選取的 2 張圖片</option><option>目前資料夾</option><option>目前自訂群組</option></select></label><label class="wf-field">匯出版本<select><option>原始圖片</option><option>目前版本（優先使用替換圖）</option></select></label><label class="wf-field">匯出位置<input value="D:/ImageEdits/MoonJourney"></label></div><div class="wf-note">保留檔名及相對路徑<br>img/pictures/heroine_01.png<br>img/pictures/heroine_02.png</div>${footer('確認匯出（示意）',2)}</div>`,
+()=>`<div class="wf-page"><h2>匯入圖片與配對</h2><p class="wf-muted">目標專案：月影之旅</p><div class="wf-drop">拖入多張圖片或資料夾<br><span class="wf-muted">下方為匯入後的配對示例</span></div><div class="wf-table-wrap"><table><thead><tr><th>匯入圖片</th><th>對應原圖</th><th>檢查結果</th><th>處理方式</th></tr></thead><tbody><tr><td>heroine_01.png</td><td>pictures/heroine_01.png</td><td>✓ 已配對<br>尺寸一致</td><td>準備匯入</td></tr><tr><td>heroine_02.png</td><td>pictures/heroine_02.png</td><td>⚠ 解析度：1024 × 768 → 1200 × 768<br>長寬比：4:3 → 25:16</td><td><label><input type="checkbox" checked> 接受差異</label></td></tr><tr><td>unknown.png</td><td><select aria-label="指定配對原圖"><option>尚未指定</option><option>pictures/heroine_03.png</option></select></td><td>找不到對應原圖</td><td><select aria-label="無法配對時的處理"><option>略過</option><option>手動配對</option></select></td></tr></tbody></table></div><div class="wf-note">確認後僅存入專案，成為待套用版本。</div>${footer('確認匯入已配對圖片',2)}</div>`,
+()=>`<div class="wf-page"><h2>確認套用到遊戲</h2><div class="wf-note">目標：月影之旅<br>D:/Games/MoonJourney<br>本次替換：2 張 · 原始備份已保留</div><div class="wf-table-wrap"><table><thead><tr><th>素材</th><th>替換狀態</th><th>檢查結果</th></tr></thead><tbody><tr><td>pictures/heroine_01.png</td><td>待套用</td><td>✓ 圖片檢查通過</td></tr><tr><td>pictures/heroine_02.png</td><td>待套用</td><td>⚠ 解析度與長寬比不同</td></tr></tbody></table></div><p>遊戲檔案檢查：未發現外部變更</p><label class="wf-row"><input type="checkbox" data-ack> 已確認圖片差異與目標遊戲</label><div class="wf-footer">${action('取消，返回工作台',2)}<button type="button" class="wf-primary cursor-interaction" data-apply disabled>確認套用（示意）</button></div><div class="wf-muted" style="margin-top:12px">此 Wireframe 只展示操作流程，不會讀寫遊戲檔案。</div></div>`,
+()=>`<div class="wf-page"><h2>還原遊戲圖片</h2><p>月影之旅 · D:/Games/MoonJourney</p><div class="wf-table-wrap"><table><thead><tr><th>選取</th><th>素材</th><th>還原內容</th></tr></thead><tbody><tr><td><input type="checkbox" checked aria-label="還原 heroine_01.png"></td><td>pictures/heroine_01.png</td><td>最初保存的原始檔案</td></tr><tr><td><input type="checkbox" checked aria-label="還原 heroine_02.png"></td><td>pictures/heroine_02.png</td><td>最初保存的原始檔案</td></tr></tbody></table></div><div class="wf-note">將選取的遊戲圖片恢復為原始版本。<br>建議：專案內仍保留替換圖片，之後可以再次套用。</div><div class="wf-footer">${action('取消，返回工作台',2)}<button type="button" data-restore class="wf-primary cursor-interaction">確認還原（示意）</button></div></div>`
+];
+let project='月影之旅';
+function render(n){current=n;root.querySelector('.wf-tabs').innerHTML=names.map((x,i)=>`<button type="button" class="cursor-interaction" data-page="${i}" ${i===n?'aria-current="page"':''}>${i+1}. ${x}</button>`).join('');content.innerHTML=pages[n]();const title=content.querySelector('.wf-project-title');if(title)title.textContent=project;}
+root.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-page'))render(Number(b.dataset.page));else if(b.dataset.project){project=b.dataset.project;render(2);}else if(b.hasAttribute('data-group')){const form=content.querySelector('.wf-group-form');form.hidden=!form.hidden;}else if(b.hasAttribute('data-group-save')){const form=content.querySelector('.wf-group-form');const btn=document.createElement('button');btn.type='button';btn.className='cursor-interaction';btn.dataset.folder=form.querySelector('input').value;btn.textContent=btn.dataset.folder+'（已選圖片）';form.before(btn);form.hidden=true;}else if(b.hasAttribute('data-folder')){content.querySelector('.wf-folder-title').textContent=b.dataset.folder;const rows=content.querySelectorAll('.wf-pair');rows.forEach(r=>r.hidden=!['全部素材','img/pictures','角色 A 差分','待修改素材'].includes(b.dataset.folder));}else if(b.hasAttribute('data-detail')){const panel=content.querySelector('.wf-detail-panel');panel.hidden=false;panel.innerHTML=`<div class="wf-note">放大對照 · heroine_0${b.dataset.detail}.png</div><div class="wf-detail">${thumb('原圖放大預覽')}${thumb('替換圖放大預覽')}</div><button type="button" data-close-detail class="cursor-interaction">收起放大對照</button>`;}else if(b.hasAttribute('data-close-detail'))content.querySelector('.wf-detail-panel').hidden=true;else if(b.hasAttribute('data-apply')){applied=true;render(2);}else if(b.hasAttribute('data-restore')){applied=false;render(2);}});
+root.addEventListener('input',e=>{if(e.target.matches('[type="search"],[data-filter]')){const q=content.querySelector('[type="search"]').value.toLowerCase();const f=content.querySelector('[data-filter]').value;content.querySelectorAll('.wf-pair').forEach(r=>{r.hidden=!r.dataset.file.includes(q)||(f!=='all'&&r.dataset.status!==f&&!(f==='pending'&&r.dataset.status==='warning'));});}if(e.target.matches('[type="color"]'))content.querySelectorAll('.wf-thumb:not(.wf-empty)').forEach(t=>t.style.background=e.target.value);});
+root.addEventListener('change',e=>{if(e.target.hasAttribute('data-ack'))content.querySelector('[data-apply]').disabled=!e.target.checked;if(e.target.hasAttribute('data-all'))content.querySelectorAll('.wf-pair:not([hidden]) input').forEach(c=>c.checked=e.target.checked);if(e.target.hasAttribute('data-background')){const work=content.querySelector('.wf-work');work.className='wf-work wf-'+e.target.value;content.querySelector('[type="color"]').hidden=e.target.value!=='custom';content.querySelectorAll('.wf-thumb').forEach(t=>t.style.background='');}});
+render(current);
+})();
+</script>

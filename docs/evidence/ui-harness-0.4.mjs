@@ -1,0 +1,55 @@
+import chromium from './node_modules/@sparticuz/chromium/build/index.js';
+import {createRequire} from 'node:module';import {writeFileSync,readFileSync} from 'node:fs';import http from 'node:http';
+const server=http.createServer((req,res)=>{const path=(req.url==='/'?'/index.html':req.url).split('?')[0];try{if(path==='/qa-font.otf'){res.setHeader('Content-Type','font/otf');res.end(readFileSync('/workspace/scratch/95031f99c24d/ui-runtime/fonts/NotoSansCJKtc-Regular.otf'));return}const data=readFileSync('/workspace/scratch/95031f99c24d/rpg-image-tool-poc/out/renderer'+path);res.setHeader('Content-Type',path.endsWith('.js')?'application/javascript':path.endsWith('.css')?'text/css':'text/html');res.end(data)}catch{res.statusCode=404;res.end()}});await new Promise(r=>server.listen(5198,'127.0.0.1',r));
+const require=createRequire(import.meta.url),{chromium:pw}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');
+const sharp=require('../rpg-image-tool-poc/node_modules/sharp');
+const png=await sharp({create:{width:400,height:300,channels:4,background:'#49696a'}}).png().toBuffer();
+const browser=await pw.launch({executablePath:'/workspace/scratch/95031f99c24d/ui-runtime/bin/chromium',args:chromium.args,headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.addInitScript(({dataUrl})=>{
+ const ok=value=>Promise.resolve({ok:true,value}),project={id:'p',name:'月影之旅',root:'D:/Games/ShadowJourney',engine:'MV',status:'ready',created:'2026-10-23'};
+ const assets=Array.from({length:40},(_,i)=>({id:'a'+i,projectId:'p',path:'img/pictures/heroine_'+String(i+1).padStart(2,'0')+'.png',width:400,height:300,alpha:1,hash:'hash',error:null}));
+ const preview={name:'heroine.png',width:400,height:300,hasAlpha:true,sha256:'hash',dataUrl};
+ const states=Object.fromEntries(assets.map((a,i)=>[a.id,{active:i%3===0?'v'+i:null,deployed:null,versions:i%3===0?[{id:'v'+i,assetId:a.id,number:1,name:'heroine.png',width:400,height:300,alpha:1,hash:'h',created:'2026-10-23T00:00:00Z',differences:'[]'}]:[]}]))
+ window.catalog={projects:()=>ok([project]),assets:()=>ok(assets),preview:()=>ok(preview),progress:()=>ok({running:false}),cancel:()=>ok(),choose:()=>ok({token:'d',root:project.root,name:project.name,engine:'MV',encrypted:true}),create:()=>ok(project)};
+ window.versions={state:id=>ok(states[id]),preview:()=>ok(preview),choose:()=>ok({token:'t',preview,differences:[]}),commit:()=>ok(states.a0),discard:()=>ok(),export:()=>ok({completed:[],skipped:[],failed:[]}),select:()=>ok(states.a0),remove:()=>ok(states.a0)};
+ window.manager={storage:()=>ok({blocked:false,error:null}),retryStorage:()=>ok({blocked:false,error:null}),groups:()=>ok([{id:'g',projectId:'p',name:'角色 A 差分',assetIds:assets.map(a=>a.id)}]),states:()=>ok(states),createGroup:()=>ok([]),changeGroup:()=>ok([]),chooseBatch:()=>ok([]),discardBatch:()=>ok(),fullPreview:()=>ok(preview),relink:()=>ok(project)};
+ window.operations={list:()=>ok([]),execute:()=>ok({}),recover:()=>ok({})};
+},{dataUrl:'data:image/png;base64,'+png.toString('base64')});
+await page.goto('http://127.0.0.1:5198');await page.addStyleTag({content:"@font-face{font-family:QAChinese;src:url('/qa-font.otf')}body,button,input,select,[class*=app]{font-family:QAChinese,system-ui!important}"});await page.evaluate(()=>document.fonts.ready);await page.getByRole('button',{name:'開啟專案 →'}).click();await page.getByTestId('asset-list').waitFor();
+const results=[];
+for(const size of [{width:1440,height:900},{width:1120,height:780},{width:800,height:600}]){
+ await page.setViewportSize(size);await page.getByRole('textbox',{name:'搜尋檔名'}).fill('heroine');
+ const before=await page.getByTestId('asset-list').boundingBox();await page.getByRole('button',{name:'⌃ 收合工具列'}).click();const after=await page.getByTestId('asset-list').boundingBox();
+ if(after.height<=before.height)throw Error('Collapsing did not increase list height');await page.getByRole('button',{name:'⌄ 展開工具列'}).click();if(await page.getByRole('textbox',{name:'搜尋檔名'}).inputValue()!=='heroine')throw Error('Search lost on collapse');
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);if(overflow)throw Error('Horizontal document overflow');
+ results.push({viewport:size,listExpanded:before.height,listCollapsed:after.height});
+ await page.screenshot({path:'/workspace/scratch/95031f99c24d/ui-runtime/workbench-'+size.width+'.png'});
+}
+await page.setViewportSize({width:1120,height:780});await page.getByRole('button',{name:'⇩ 匯出',exact:true}).click();await page.getByRole('dialog',{name:'匯出圖片'}).waitFor();
+const layer=await page.evaluate(()=>{const footer=document.querySelector('footer'),b=footer.getBoundingClientRect(),top=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);return !footer.contains(top)});if(!layer)throw Error('Footer is above modal overlay');
+await page.screenshot({path:'/workspace/scratch/95031f99c24d/ui-runtime/modal.png'});await page.keyboard.press('Escape');if(await page.getByRole('dialog').count())throw Error('Escape did not close modal');
+await page.getByRole('button',{name:'詳細內容 →'}).first().click();await page.getByRole('button',{name:'↥ 上傳替換圖片'}).waitFor();await page.screenshot({path:'/workspace/scratch/95031f99c24d/ui-runtime/detail.png'});
+await page.getByRole('button',{name:'↥ 上傳替換圖片'}).click();await page.getByRole('dialog',{name:'上傳替換圖片'}).waitFor();await page.keyboard.press('Escape');await page.getByRole('button',{name:'◉ 預覽'}).click();await page.getByRole('button',{name:'100%',exact:true}).click();const imageWidth=await page.getByRole('dialog').locator('img').evaluate(img=>img.getBoundingClientRect().width);if(imageWidth!==400)throw Error('100% is not source pixel width');await page.keyboard.press('Escape');
+await page.getByRole('button',{name:'套用到遊戲',exact:true}).click();
+await page.getByRole('heading',{name:'套用到遊戲',exact:true}).waitFor();
+const apply = page.getByRole('button',{name:'↥ 套用全部待套用圖片'});
+if(!await apply.isDisabled())throw Error('Apply allowed without confirmation');
+await page.getByLabel('我已確認目標遊戲、圖片差異與寫入範圍').check();
+if(await apply.isDisabled())throw Error('Apply remains disabled after confirmation');
+await page.screenshot({path:'/workspace/scratch/95031f99c24d/ui-runtime/operation.png'});
+await page.getByRole('button',{name:'← 返回工作臺',exact:true}).click();
+await page.getByRole('button',{name:'RPG 圖片管理器',exact:true}).click();
+await page.getByRole('button',{name:'＋ 建立專案',exact:true}).first().click();
+await page.getByRole('heading',{name:'建立新遊戲專案'}).waitFor();
+const create = page.getByRole('button',{name:'建立專案',exact:true});
+if(!await create.isDisabled())throw Error('Create allowed without chosen path');
+await page.getByRole('button',{name:'選擇資料夾',exact:true}).click();
+await page.getByText('✓ 已辨識 RPG Maker MV').waitFor();
+if(!await create.isDisabled())throw Error('Create allowed without clean source confirmation');
+await page.getByLabel('我確認這是未修改的遊戲來源').check();
+if(await create.isDisabled())throw Error('Create remains disabled');
+await page.screenshot({path:'/workspace/scratch/95031f99c24d/ui-runtime/create.png'});
+await create.click();await page.getByTestId('asset-list').waitFor();
+if(errors.length)throw Error(errors.join('\n'));
+writeFileSync('/workspace/scratch/95031f99c24d/ui-runtime/results.json',JSON.stringify({results,footerLayer:'PASS',escape:'PASS',actualPixelPreview:'PASS',operationConfirmation:'PASS',creationDetectionAndConfirmation:'PASS',consoleErrors:errors,scope:'Built renderer with mocked IPC, not native Electron integration'},null,2));console.log(JSON.stringify(results));await browser.close();server.close();

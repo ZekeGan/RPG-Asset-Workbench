@@ -1,0 +1,202 @@
+{
+  "version": "1.0.0",
+  "date": "2026-10-22",
+  "scope": "document checks only, no application tests",
+  "results": [
+    {
+      "check": "FR identifiers",
+      "status": "PASS",
+      "detail": "30"
+    },
+    {
+      "check": "SCREEN identifiers",
+      "status": "PASS",
+      "detail": "14"
+    },
+    {
+      "check": "DEC identifiers",
+      "status": "PASS",
+      "detail": "24"
+    },
+    {
+      "check": "GAP identifiers",
+      "status": "PASS",
+      "detail": "13"
+    },
+    {
+      "check": "FR-001 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-002 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-003 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-004 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-005 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-006 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-007 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-008 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-009 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-010 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-011 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-012 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-013 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-014 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-015 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-016 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-017 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-018 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-019 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-020 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-021 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-022 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-023 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-024 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-025 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-026 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-027 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-028 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-029 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "FR-030 traceability",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Markdown local links and anchors",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "check": "Design originals unchanged",
+      "status": "PASS",
+      "detail": []
+    },
+    {
+      "check": "Four formal files exist",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "No application initialization",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "check": "Application tests explicitly NOT RUN",
+      "status": "PASS",
+      "detail": ""
+    }
+  ]
+}
