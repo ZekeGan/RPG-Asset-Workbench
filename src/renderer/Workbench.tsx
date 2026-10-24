@@ -142,7 +142,9 @@ export default function Workbench() {
     [exportSource, setExportSource] = useState<'original' | 'active'>('original'),
     [batch, setBatch] = useState(false),
     [settings, setSettings] = useState(false),
-    [groupAction, setGroupAction] = useState<'create' | 'add' | 'remove' | 'delete' | null>(null),
+    [groupAction, setGroupAction] = useState<
+      'create' | 'rename' | 'add' | 'remove' | 'delete' | null
+    >(null),
     [groupName, setGroupName] = useState(''),
     [targetGroup, setTargetGroup] = useState('');
   const request = useRef(0),
@@ -312,6 +314,8 @@ export default function Workbench() {
     try {
       if (groupAction === 'create') {
         setGroups(value(await window.manager.createGroup(project.id, groupName)));
+      } else if (groupAction === 'rename') {
+        setGroups(value(await window.manager.renameGroup(project.id, group, groupName)));
       } else {
         const id = groupAction === 'add' ? targetGroup : group;
         if (!id) throw Error(t('請選擇群組'));
@@ -517,13 +521,14 @@ export default function Workbench() {
                   '建立後會保存原始圖片備份。請使用乾淨的遊戲測試副本；原始基準不會因後續替換而更新。',
                 )}
               </div>
-              <label className={s.checkLabel}>
+              <label style={{ display: 'flex', gap: '8px', justifyItems: 'center' }}>
                 <input
                   type="checkbox"
                   checked={confirmed}
                   disabled={busy || !candidate}
                   onChange={(e) => setConfirmed(e.target.checked)}
                 />
+
                 {t('我確認這是未修改的遊戲來源')}
               </label>
               <div className={s.modalActions}>
@@ -683,23 +688,24 @@ export default function Workbench() {
             />
           ) : (
             <main className={s.work}>
-              {!availability.online && (
-                <section role="alert" className={s.warning}>
-                  <p>
-                    {availability.error ? t(availability.error) : t('正在檢查遊戲位置…')}
-                    {t('工具內已保存的圖片仍可查看。')}
-                  </p>
-                  <button disabled={busy} onClick={() => setSettings(true)}>
-                    {t('重新連結遊戲位置')}
-                  </button>
-                </section>
-              )}
-              {!['ready', 'warnings'].includes(project.status) && (
-                <section role="status" className={s.warning}>
-                  {t('已保留掃描結果，可稍後繼續；目前尚無法套用到遊戲。')}
-                </section>
-              )}
-
+              <div style={{ marginBottom: '8px' }}>
+                {!availability.online && (
+                  <section role="alert" className={s.warning}>
+                    <p>
+                      {availability.error ? t(availability.error) : t('正在檢查遊戲位置…')}
+                      {t('工具內已保存的圖片仍可查看。')}
+                    </p>
+                    <button disabled={busy} onClick={() => setSettings(true)}>
+                      {t('重新連結遊戲位置')}
+                    </button>
+                  </section>
+                )}
+                {!['ready', 'warnings'].includes(project.status) && (
+                  <section role="status" className={s.warning}>
+                    {t('已保留掃描結果，可稍後繼續；目前尚無法套用到遊戲。')}
+                  </section>
+                )}
+              </div>
               <div className={s.workHeading}>
                 <div>
                   <small>
@@ -719,6 +725,15 @@ export default function Workbench() {
                         onClick={() => setAddingAssets(true)}
                       >
                         {t('＋ 新增素材')}
+                      </button>
+                      <button
+                        disabled={busy || storage.blocked}
+                        onClick={() => {
+                          setGroupName(currentGroup?.name || '');
+                          setGroupAction('rename');
+                        }}
+                      >
+                        {t('重新命名群組')}
                       </button>
                       <button onClick={() => setGroupAction('delete')}>
                         {t('群組選單 · 刪除')}
@@ -1006,23 +1021,29 @@ export default function Workbench() {
       {scanPlan && project && (
         <Modal title={t('確認掃描差異')} busy={busy} close={() => setScanPlan(null)}>
           <p>{t('只保存下列新增路徑。既有變更不覆寫基準，來源缺失不刪除工具資料。')}</p>
-          {(['added', 'changed', 'missing'] as const).map((kind) => (
-            <details key={kind} open>
-              <summary>
-                {
-                  { added: t('新增'), changed: t('既有變更／無可用基準'), missing: t('來源缺失') }[
-                    kind
-                  ]
-                }
-                （{scanPlan[kind].length}）
-              </summary>
-              <ul>
-                {scanPlan[kind].map((path) => (
-                  <li key={path}>{path}</li>
-                ))}
-              </ul>
-            </details>
-          ))}
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 0 8px 8px' }}
+          >
+            {(['added', 'changed', 'missing'] as const).map((kind) => (
+              <details key={kind} open>
+                <summary>
+                  {
+                    {
+                      added: t('新增'),
+                      changed: t('既有變更／無可用基準'),
+                      missing: t('來源缺失'),
+                    }[kind]
+                  }
+                  （{scanPlan[kind].length}）
+                </summary>
+                <ul>
+                  {scanPlan[kind].map((path) => (
+                    <li key={path}>{path}</li>
+                  ))}
+                </ul>
+              </details>
+            ))}
+          </div>
           <div style={{ display: 'flex', gap: 5 }}>
             <button disabled={busy} onClick={() => setScanPlan(null)}>
               {t('取消')}
@@ -1137,6 +1158,7 @@ export default function Workbench() {
           title={
             {
               create: t('建立群組'),
+              rename: t('重新命名群組'),
               add: t('加入群組'),
               remove: t('從群組移除素材'),
               delete: t('刪除群組'),
@@ -1145,7 +1167,7 @@ export default function Workbench() {
           busy={busy}
           close={() => setGroupAction(null)}
         >
-          {groupAction === 'create' ? (
+          {groupAction === 'create' || groupAction === 'rename' ? (
             <label>
               {t('群組名稱')}
               <input
@@ -1175,7 +1197,10 @@ export default function Workbench() {
             </button>
             <button
               className={s.primary}
-              disabled={busy || (groupAction === 'create' && !groupName.trim())}
+              disabled={
+                busy ||
+                ((groupAction === 'create' || groupAction === 'rename') && !groupName.trim())
+              }
               onClick={() => void groupSubmit()}
             >
               {t('確認')}

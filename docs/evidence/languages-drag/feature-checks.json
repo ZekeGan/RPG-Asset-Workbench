@@ -35,7 +35,7 @@
   ],
   "regularLimit": 16777216,
   "hardLimit": 33554432,
-  "largePreviewMs": 233,
+  "largePreviewMs": 219,
   "singleDropConfirm": true,
   "cancelDoesNotImport": true,
   "multipleDropBatch": true,

@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { getLocale, isLocale, t } from '../shared/i18n';
-import { value } from './ui';
+import { Icon, value } from './ui';
+import s from './workbench.module.css';
 export function LocaleSelect() {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   return (
     <div>
-      <label>
-        {t('語言')}{' '}
+      <label className={s.localeSelect} title={t('語言')}>
+        <Icon name="language" />
         <select
           aria-label="Language"
           disabled={busy}

@@ -218,9 +218,9 @@ export function VersionPanel({
         {state?.versions.map((v) => (
           <article key={v.id} className={s.historyRow}>
             <strong className={s.success}>V{v.number}</strong>
-            <small>{new Date(v.created).toLocaleString(getLocale())}</small>
-            <div>
+            <div className={s.historyInfo}>
               <strong>{v.name}</strong>
+              <small>{new Date(v.created).toLocaleString(getLocale())}</small>
               <small>
                 {v.width} × {v.height}
                 {v.id === state.active ? t(' · 目前選用') : ''}
@@ -235,18 +235,20 @@ export function VersionPanel({
             >
               <Thumbnail asset={asset} version={v.id} />
             </button>
-            <button
-              disabled={busy || v.id === state.active}
-              onClick={() => setAction({ kind: 'select', id: v.id })}
-            >
-              {t('✓ 使用此版本')}
-            </button>
-            <button
-              disabled={busy || v.id === state.deployed}
-              onClick={() => setAction({ kind: 'remove', id: v.id })}
-            >
-              {t('刪除紀錄')}
-            </button>
+            <div className={s.historyActions}>
+              <button
+                disabled={busy || v.id === state.active}
+                onClick={() => setAction({ kind: 'select', id: v.id })}
+              >
+                {t('✓ 使用此版本')}
+              </button>
+              <button
+                disabled={busy || v.id === state.deployed}
+                onClick={() => setAction({ kind: 'remove', id: v.id })}
+              >
+                {t('刪除紀錄')}
+              </button>
+            </div>
           </article>
         ))}
         {!state?.versions.length && <p className={s.blank}>{t('尚無歷史版本')}</p>}

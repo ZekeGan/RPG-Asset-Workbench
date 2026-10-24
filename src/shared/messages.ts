@@ -293,6 +293,7 @@ RPG Asset Workbench · RPG Maker 圖片素材管理工具|RPG Asset Workbench ·
 從群組移除素材|Remove assets from group|グループから素材を除外
 刪除群組|Delete group|グループを削除
 群組名稱|Group name|グループ名
+重新命名群組|Rename group|グループ名を変更
 目標群組|Target group|対象グループ
 只移除群組關聯，不會刪除圖片、歷史或遊戲檔案。|Only group membership is removed. Images, history and game files are preserved.|グループとの関連付けのみ解除します。画像、履歴、ゲームファイルは削除しません。
 專案及工具保存的相關資料已刪除；遊戲維持現狀|Project and saved tool data deleted; game unchanged|プロジェクトと関連する保存データを削除しました。ゲームは変更していません

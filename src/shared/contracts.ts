@@ -163,6 +163,7 @@ export interface ManagerBridge {
   retryStorage: () => Promise<Result<{ blocked: boolean; error: string | null }>>;
   groups: (projectId: string) => Promise<Result<Group[]>>;
   createGroup: (projectId: string, name: string) => Promise<Result<Group[]>>;
+  renameGroup: (projectId: string, id: string, name: string) => Promise<Result<Group[]>>;
   changeGroup: (
     projectId: string,
     id: string,

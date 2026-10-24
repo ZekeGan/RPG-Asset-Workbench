@@ -1,0 +1,56 @@
+{
+  "groupRename": true,
+  "cancelUnchanged": true,
+  "membersPreserved": true,
+  "languageIcon": true,
+  "layouts": [
+    {
+      "locale": "en",
+      "width": 800,
+      "topAligned": true,
+      "historyNoOverlap": true
+    },
+    {
+      "locale": "en",
+      "width": 1120,
+      "topAligned": true,
+      "historyNoOverlap": true
+    },
+    {
+      "locale": "ja",
+      "width": 800,
+      "topAligned": true,
+      "historyNoOverlap": true
+    },
+    {
+      "locale": "ja",
+      "width": 1120,
+      "topAligned": true,
+      "historyNoOverlap": true
+    },
+    {
+      "locale": "zh-Hans",
+      "width": 800,
+      "topAligned": true,
+      "historyNoOverlap": true
+    },
+    {
+      "locale": "zh-Hans",
+      "width": 1120,
+      "topAligned": true,
+      "historyNoOverlap": true
+    },
+    {
+      "locale": "zh-Hant",
+      "width": 800,
+      "topAligned": true,
+      "historyNoOverlap": true
+    },
+    {
+      "locale": "zh-Hant",
+      "width": 1120,
+      "topAligned": true,
+      "historyNoOverlap": true
+    }
+  ]
+}

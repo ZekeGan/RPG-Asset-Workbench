@@ -36,6 +36,18 @@ export class Groups {
       .run(randomUUID(), projectId, name.trim());
     return this.list(projectId);
   }
+  rename(projectId: string, id: string, name: string) {
+    const groups = this.list(projectId);
+    if (!groups.some((g) => g.id === id)) throw Error('群組不屬於此專案');
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 80)
+      throw Error('群組名稱需為 1–80 字');
+    const trimmed = name.trim();
+    if (groups.some((g) => g.id !== id && g.name === trimmed)) throw Error('已有同名群組');
+    this.store.db
+      .prepare('UPDATE groups SET name=? WHERE id=? AND project_id=?')
+      .run(trimmed, id, projectId);
+    return this.list(projectId);
+  }
   change(projectId: string, id: string, action: 'add' | 'remove' | 'delete', ids: string[] = []) {
     if (!this.list(projectId).some((g) => g.id === id)) throw Error('群組不屬於此專案');
     if (

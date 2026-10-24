@@ -205,6 +205,21 @@ module.exports = async ({
   assert.equal(draft.preview.width, 4097);
   unwrap(await js(`window.versions.discard(${JSON.stringify(draft.token)})`));
   setDialogResponse(0);
+  const largePreviewMs = Date.now() - start;
+  await require('./electron-layout-checks.cjs')({
+    win,
+    js,
+    wait,
+    click,
+    unwrap,
+    output,
+    projectId,
+    assetId,
+    base,
+    edited,
+    setSelected,
+    sleep,
+  });
   await fs.writeFile(
     path.join(output, 'feature-checks.json'),
     JSON.stringify(
@@ -212,7 +227,7 @@ module.exports = async ({
         locales: results,
         regularLimit: 16777216,
         hardLimit: 33554432,
-        largePreviewMs: Date.now() - start,
+        largePreviewMs,
         singleDropConfirm: true,
         cancelDoesNotImport: true,
         multipleDropBatch: true,

@@ -131,6 +131,7 @@ else
           'manager:project-save',
           'manager:project-delete',
           'manager:group-create',
+          'manager:group-rename',
           'manager:group-change',
           'manager:batch-choose',
           'manager:batch-inspect',
@@ -399,6 +400,12 @@ else
       if (typeof id !== 'string' || typeof name !== 'string') throw Error(t('參數無效'));
       getOperations().assertEditable(id);
       return getGroups().create(id, name);
+    });
+    handle('manager:group-rename', (project, id, name) => {
+      if (typeof project !== 'string' || typeof id !== 'string' || typeof name !== 'string')
+        throw Error(t('參數無效'));
+      getOperations().assertEditable(project);
+      return getGroups().rename(project, id, name);
     });
     handle('manager:group-change', (project, id, action, ids) => {
       if (

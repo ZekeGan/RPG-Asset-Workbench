@@ -441,7 +441,7 @@
 .assetCell {
   display: flex;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   min-width: 0;
 }
 .assetCell > div:last-child {
@@ -709,7 +709,7 @@
 }
 .historyRow {
   display: grid;
-  grid-template-columns: 42px 145px 1fr auto auto auto;
+  grid-template-columns: 42px minmax(0, 1fr) 100px minmax(120px, auto);
   align-items: center;
   gap: 12px;
   padding: 12px;
@@ -720,6 +720,25 @@
 }
 .historyRow small {
   display: block;
+}
+.historyInfo {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.historyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.localeSelect {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.row > .assetCell,
+.row > .replacementDrop {
+  align-self: start;
 }
 .viewerTools {
   display: flex;
@@ -819,15 +838,6 @@
   .currentLayout > div {
     width: auto;
   }
-  .historyRow {
-    grid-template-columns: 35px 120px 1fr auto;
-  }
-  .historyRow > button {
-    font-size: 11px;
-  }
-  .historyRow > button:nth-last-child(-n + 2) {
-    grid-row: auto;
-  }
 }
 @media (max-width: 850px) {
   .top {
@@ -915,9 +925,6 @@
   }
   .compare {
     grid-template-columns: 1fr;
-  }
-  .historyRow {
-    grid-template-columns: 30px 100px 1fr;
   }
   .viewerTools {
     flex-wrap: wrap;
@@ -1283,6 +1290,12 @@
     align-items: flex-start;
   }
   .historyRow {
-    grid-template-columns: 30px 100px minmax(0, 1fr);
+    grid-template-columns: 30px minmax(0, 1fr) 90px;
+    gap: 8px;
+    align-items: start;
+  }
+  .historyActions {
+    grid-column: 2 / -1;
+    justify-content: flex-start;
   }
 }

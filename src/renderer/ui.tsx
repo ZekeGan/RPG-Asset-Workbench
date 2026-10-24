@@ -176,9 +176,10 @@ export function ImageViewer({ preview, close }: { preview: Preview; close: () =>
 export function Icon({
   name,
 }: {
-  name: 'image' | 'folder' | 'upload' | 'home' | 'check' | 'settings';
+  name: 'image' | 'folder' | 'upload' | 'home' | 'check' | 'settings' | 'language';
 }) {
   const paths = {
+    language: 'M3 5h12 M9 3v2 M12 5c-1 6-4 9-9 11 M5 8c1 3 3 5 6 7 M13 21l4-10 4 10 M15 17h4',
     image: 'M3 3h18v18H3z M3 17l6-6 4 4 3-3 5 5 M8 7h.01',
     folder: 'M3 6h7l2 2h9v12H3z',
     upload: 'M12 16V3 M7 8l5-5 5 5 M4 14v7h16v-7',

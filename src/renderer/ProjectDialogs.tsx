@@ -54,6 +54,9 @@ export function AssetPicker({
       <div className={s.pickerList}>
         {shown.map((a) => (
           <label className={s.pickerRow} key={a.id}>
+            <div style={{display: 'flex', gap: 10}}>
+
+            
             <input
               type={multiple ? 'checkbox' : 'radio'}
               name="asset-picker"
@@ -80,6 +83,7 @@ export function AssetPicker({
                     : `${a.width} × ${a.height} · PNG`}
               </small>
             </span>
+            </div>
           </label>
         ))}
       </div>

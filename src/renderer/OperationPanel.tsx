@@ -193,6 +193,8 @@ export function OperationPanel({
           />
           {t('我已確認目標遊戲、圖片差異與寫入範圍')}
         </label>
+
+        
         <button disabled={busy} onClick={back}>
           {t('返回工作臺')}
         </button>

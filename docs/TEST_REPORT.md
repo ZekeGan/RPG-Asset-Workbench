@@ -1,3 +1,7 @@
+# 0.5.1 群組與版面驗證 — 2026-10-25
+
+typecheck、build、受影響的 27 項測試及四語 Electron fixture UI 驗收通過。包含改名、語言圖示、歷史窄視窗及預覽頂端對齊；詳見 [更新紀錄](UPDATE_0.5.1.md)。未重跑無關資料層回歸，人工發行清單仍需實測。以下為歷史結果。
+
 # 四語與拖放驗證 — 2026-10-24
 
 同日捲軸修正：typecheck、build 與 Electron 四語 fixture UI 通過，增加根頁面雙軸溢出／body 邊距／捲軸寬度一致性檢查。畫面證據沿用更新後的 evidence/languages-drag，詳見 [捲軸修正紀錄](NEXT_REQUESTS.md)。本次未重跑無關資料層完整測試。

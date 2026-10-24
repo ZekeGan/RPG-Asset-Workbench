@@ -71,6 +71,7 @@ const manager: ManagerBridge = {
   retryStorage: () => ipcRenderer.invoke('manager:retry'),
   groups: (id) => ipcRenderer.invoke('manager:groups', id),
   createGroup: (id, name) => ipcRenderer.invoke('manager:group-create', id, name),
+  renameGroup: (project, id, name) => ipcRenderer.invoke('manager:group-rename', project, id, name),
   changeGroup: (project, id, action, ids) =>
     ipcRenderer.invoke('manager:group-change', project, id, action, ids),
   states: (id) => ipcRenderer.invoke('manager:states', id),

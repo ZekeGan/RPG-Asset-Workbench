@@ -192,6 +192,26 @@ it('incremental scan compares deployed bytes rather than treating replacement as
     f.bytes,
   );
 });
+it('renames only the owned group, preserving members and rejecting invalid or duplicate names', async () => {
+  const f = await fixture();
+  const group = f.groups.create(f.p.id, 'A')[0];
+  f.groups.create(f.p.id, 'B');
+  f.groups.change(f.p.id, group.id, 'add', [f.assets[0].id]);
+  for (const name of ['', '  ', 'x'.repeat(81), 'B'])
+    expect(() => f.groups.rename(f.p.id, group.id, name)).toThrow();
+  expect(() => f.groups.rename(f.p.id, 'missing', 'C')).toThrow('群組不屬於此專案');
+  const otherGame = join(f.root, 'other');
+  await cp(f.game, otherGame, { recursive: true });
+  const other = await f.catalog.create(otherGame, 'other', true);
+  expect(() => f.groups.rename(other.id, group.id, 'C')).toThrow('群組不屬於此專案');
+  f.groups.rename(f.p.id, group.id, '  新名稱  ');
+  f.groups.rename(f.p.id, group.id, '新名稱');
+  expect(new Groups(f.store, f.catalog).list(f.p.id).find((g) => g.id === group.id)).toMatchObject({
+    name: '新名稱',
+    assetIds: [f.assets[0].id],
+  });
+  expect(await readFile(join(f.game, 'img/pictures/a.png'))).toEqual(f.bytes);
+});
 it('keeps one asset in multiple groups and removes associations without deleting bytes or history', async () => {
   const f = await fixture(),
     id = f.assets[0].id;

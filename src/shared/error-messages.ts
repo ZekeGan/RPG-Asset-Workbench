@@ -105,6 +105,7 @@ const rows = String.raw`
 預檢後出現同名檔案，未授權覆蓋|A matching file appeared after validation; overwrite not authorized|検証後に同名ファイルが作成されました。上書きは許可されていません。
 匯出後驗證失敗|Export verification failed|エクスポート後の検証に失敗しました
 群組名稱需為 1–80 字|Group name must be 1–80 characters|グループ名は1～80文字で入力してください
+已有同名群組|A group with this name already exists|同じ名前のグループが既にあります
 群組不屬於此專案|Group does not belong to this project|このプロジェクトのグループではありません
 群組參數無效|Invalid group parameters|グループのパラメーターが無効です
 專案刪除未完成，請返回首頁重試刪除|Project cleanup is incomplete. Retry deletion from the home page.|プロジェクトの削除が未完了です。一覧から再試行してください。
