@@ -3,6 +3,17 @@ import { createHash } from 'node:crypto';
 import type { Preview } from '../shared/contracts';
 export const MAX_BYTES = 32 * 1024 * 1024;
 export const MAX_PIXELS = 16_777_216;
+// Above the regular limit, imports require explicit consent; never decode without a hard cap.
+export const MAX_LARGE_PIXELS = 33_554_432;
+export function imageSize(bytes: Buffer) {
+  checkStructure(bytes);
+  const width = bytes.readUInt32BE(16),
+    height = bytes.readUInt32BE(20),
+    pixels = width * height;
+  if (!width || !height || pixels > MAX_LARGE_PIXELS)
+    throw Error(`圖片 ${width} × ${height} 超過安全上限 ${MAX_LARGE_PIXELS} 像素`);
+  return { width, height, pixels };
+}
 export function crc32(b: Uint8Array): number {
   let c = 0xffffffff;
   for (const n of b) {
@@ -42,20 +53,24 @@ export function checkStructure(b: Buffer) {
   }
   if (!end) throw new Error('PNG 不完整');
 }
-async function decodeOne(bytes: Buffer, name: string): Promise<Preview> {
+async function decodeOne(bytes: Buffer, name: string, allowLarge: boolean): Promise<Preview> {
   if (!name.toLowerCase().endsWith('.png')) throw new Error('只接受 .png 圖片，其他格式不能匯入');
-  checkStructure(bytes);
-  const pipeline = sharp(bytes, { failOn: 'warning', limitInputPixels: MAX_PIXELS });
+  const { width, height, pixels } = imageSize(bytes);
+  if (pixels > MAX_PIXELS && !allowLarge)
+    throw Error(`圖片 ${width} × ${height} 超過一般上限 ${MAX_PIXELS} 像素，需確認大圖處理`);
+  const pipeline = sharp(bytes, {
+    failOn: 'warning',
+    limitInputPixels: allowLarge ? MAX_LARGE_PIXELS : MAX_PIXELS,
+  });
   const metadata = await pipeline.metadata();
-  const { data, info } = await pipeline.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  const thumb = await sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } })
+  const thumb = await pipeline
     .resize({ width: 1200, height: 800, fit: 'inside', withoutEnlargement: true })
     .png()
     .toBuffer();
   return {
     name,
-    width: info.width,
-    height: info.height,
+    width,
+    height,
     hasAlpha: metadata.hasAlpha ?? false,
     sha256: createHash('sha256').update(bytes).digest('hex'),
     dataUrl: 'data:image/png;base64,' + thumb.toString('base64'),
@@ -64,8 +79,8 @@ async function decodeOne(bytes: Buffer, name: string): Promise<Preview> {
 
 // Bound simultaneous native decodes across scan and preview requests.
 let decodeTail: Promise<unknown> = Promise.resolve();
-export function decodePng(bytes: Buffer, name: string): Promise<Preview> {
-  const result = decodeTail.then(() => decodeOne(bytes, name));
+export function decodePng(bytes: Buffer, name: string, allowLarge = false): Promise<Preview> {
+  const result = decodeTail.then(() => decodeOne(bytes, name, allowLarge));
   decodeTail = result.catch(() => undefined);
   return result;
 }

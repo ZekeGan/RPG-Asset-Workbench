@@ -1,13 +1,23 @@
+import { t, getLocale } from '../shared/i18n';
 import React, { useEffect, useState } from 'react';
 import type { Asset, ImportDraft, Preview, VersionBridge, VersionState } from '../shared/contracts';
 import { ImageViewer, Modal, value } from './ui';
+import { Thumbnail } from './Thumbnail';
 import s from './workbench.module.css';
 declare global {
   interface Window {
     versions: VersionBridge;
   }
 }
-export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => void }) {
+export function VersionPanel({
+  asset,
+  changed,
+  onBusy,
+}: {
+  asset: Asset;
+  changed: () => void;
+  onBusy?: (busy: boolean) => void;
+}) {
   const [state, setState] = useState<VersionState | null>(null),
     [original, setOriginal] = useState<Preview | null>(null),
     [current, setCurrent] = useState<Preview | null>(null),
@@ -16,16 +26,21 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [large, setLarge] = useState<Preview | null>(null),
-    [action, setAction] = useState<{ kind: 'select' | 'remove'; id: string | null } | null>(null);
+    [action, setAction] = useState<{
+      kind: 'select' | 'remove' | 'cancel';
+      id: string | null;
+    } | null>(null);
   async function run(fn: () => Promise<void>) {
     setBusy(true);
+    onBusy?.(true);
     setError('');
     try {
       await fn();
     } catch (e) {
-      setError(String(e));
+      setError(t(String(e)));
     } finally {
       setBusy(false);
+      onBusy?.(false);
     }
   }
   useEffect(() => {
@@ -38,7 +53,7 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
         }
       })
       .catch((e) => {
-        if (alive) setError(String(e));
+        if (alive) setError(t(String(e)));
       });
     return () => {
       alive = false;
@@ -54,7 +69,7 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
           if (alive) setCurrent(value(r));
         })
         .catch((e) => {
-          if (alive) setError(String(e));
+          if (alive) setError(t(String(e)));
         });
     return () => {
       alive = false;
@@ -70,10 +85,10 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
       onDrop={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (busy) return;
+        if (busy || draft || action || large) return;
         const files = Array.from(e.dataTransfer.files);
         if (files.length !== 1) {
-          setError('詳細頁只接受一張圖片，批量匯入請返回工作臺。');
+          setError(t('詳細頁只接受一張圖片，批量匯入請返回工作臺。'));
           return;
         }
         void run(async () => {
@@ -91,13 +106,13 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
       <p className={s.path}>{asset.path}</p>
       <div className={s.compare}>
         <section className={s.previewCard}>
-          <h3>原始圖片 · 固定基準</h3>
+          <h3>{t('原始圖片 · 固定基準')}</h3>
           <button
             className={s.previewButton}
             disabled={busy || !original}
             onClick={() => show(null)}
           >
-            {original ? <img src={original.dataUrl} alt="固定原始圖片" /> : '載入中…'}
+            {original ? <img src={original.dataUrl} alt={t('固定原始圖片')} /> : t('載入中…')}
           </button>
           <button
             disabled={busy}
@@ -106,16 +121,21 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                 const r = value(await window.versions.export([asset.id], 'original'));
                 if (r)
                   setError(
-                    `匯出 ${r.completed.length}；略過 ${r.skipped.length}；失敗 ${r.failed.length} ${r.failed.map((x) => x.error).join('；')}`,
+                    t('匯出 {0}；略過 {1}；失敗 {2} {3}', [
+                      r.completed.length,
+                      r.skipped.length,
+                      r.failed.length,
+                      r.failed.map((x) => x.error).join('；'),
+                    ]),
                   );
               })
             }
           >
-            ⇩ 匯出原圖
+            {t('⇩ 匯出原圖')}
           </button>
         </section>
         <section className={s.previewCard}>
-          <h3>目前替換圖片</h3>
+          <h3>{t('目前替換圖片')}</h3>
           <div className={s.currentLayout}>
             <button
               className={s.previewButton}
@@ -123,23 +143,26 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
               onClick={() => show(active?.id ?? null)}
             >
               {current ? (
-                <img src={current.dataUrl} alt="目前選用圖片" />
+                <img src={current.dataUrl} alt={t('目前選用圖片')} />
               ) : state?.deployed && !state.active && original ? (
-                <img src={original.dataUrl} alt="待套用原圖" />
+                <img src={original.dataUrl} alt={t('待套用原圖')} />
               ) : (
-                <span>尚未選用替換圖</span>
+                <span>{t('尚未選用替換圖')}</span>
               )}
             </button>
             <div>
               <strong className={active?.id === state?.deployed ? s.success : s.warning}>
                 {active
-                  ? `V${active.number} · ${active.id === state?.deployed ? '已套用' : '待套用'}`
+                  ? `V${active.number} · ${active.id === state?.deployed ? t('已套用') : t('待套用')}`
                   : state?.deployed
-                    ? '原圖 · 待套用'
-                    : '尚未選用'}
+                    ? t('原圖 · 待套用')
+                    : t('尚未選用')}
               </strong>
-              <p>遊戲：{deployed ? 'V' + deployed.number : '尚無工具部署紀錄'}</p>
-              <p>{state?.versions.length ?? 0} 筆上傳紀錄</p>
+              <p>
+                {t('遊戲：')}
+                {deployed ? 'V' + deployed.number : t('尚無工具部署紀錄')}
+              </p>
+              <p>{t('{0} 筆上傳紀錄', [state?.versions.length ?? 0])}</p>
               <button
                 className={s.primary}
                 disabled={busy}
@@ -150,14 +173,22 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                   })
                 }
               >
-                ↥ 上傳替換圖片
+                {t('↥ 上傳替換圖片')}
               </button>
               <button
                 disabled={busy || !state?.active}
                 onClick={() => setAction({ kind: 'select', id: null })}
               >
-                選回原圖
+                {t('選回原圖')}
               </button>
+              {state && state.active !== state.deployed && (
+                <button
+                  disabled={busy}
+                  onClick={() => setAction({ kind: 'cancel', id: state.deployed })}
+                >
+                  {t('取消待套用')}
+                </button>
+              )}
               <button
                 disabled={busy}
                 onClick={() =>
@@ -165,58 +196,68 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                     const r = value(await window.versions.export([asset.id], 'active'));
                     if (r)
                       setError(
-                        `匯出 ${r.completed.length}；略過 ${r.skipped.length}；失敗 ${r.failed.length} ${r.failed.map((x) => x.error).join('；')}`,
+                        t('匯出 {0}；略過 {1}；失敗 {2} {3}', [
+                          r.completed.length,
+                          r.skipped.length,
+                          r.failed.length,
+                          r.failed.map((x) => x.error).join('；'),
+                        ]),
                       );
                   })
                 }
               >
-                匯出目前版本
+                {t('匯出目前版本')}
               </button>
-              <small>無選用時匯出原圖</small>
+              <small>{t('無選用時匯出原圖')}</small>
             </div>
           </div>
         </section>
       </div>
       <section className={s.history}>
-        <h3>上傳歷史</h3>
+        <h3>{t('上傳歷史')}</h3>
         {state?.versions.map((v) => (
           <article key={v.id} className={s.historyRow}>
             <strong className={s.success}>V{v.number}</strong>
-            <small>{new Date(v.created).toLocaleString()}</small>
+            <small>{new Date(v.created).toLocaleString(getLocale())}</small>
             <div>
               <strong>{v.name}</strong>
               <small>
                 {v.width} × {v.height}
-                {v.id === state.active ? ' · 目前選用' : ''}
-                {v.id === state.deployed ? ' · 已部署' : ''}
+                {v.id === state.active ? t(' · 目前選用') : ''}
+                {v.id === state.deployed ? t(' · 已部署') : ''}
               </small>
             </div>
-            <button disabled={busy} onClick={() => show(v.id)}>
-              ◉ 預覽
+            <button
+              className={s.historyThumb}
+              aria-label={t('預覽 V{0}', [v.number])}
+              disabled={busy}
+              onClick={() => show(v.id)}
+            >
+              <Thumbnail asset={asset} version={v.id} />
             </button>
             <button
               disabled={busy || v.id === state.active}
               onClick={() => setAction({ kind: 'select', id: v.id })}
             >
-              ✓ 使用此版本
+              {t('✓ 使用此版本')}
             </button>
             <button
-              disabled={busy || v.id === state.active || v.id === state.deployed}
+              disabled={busy || v.id === state.deployed}
               onClick={() => setAction({ kind: 'remove', id: v.id })}
             >
-              刪除紀錄
+              {t('刪除紀錄')}
             </button>
           </article>
         ))}
-        {!state?.versions.length && <p className={s.blank}>尚無歷史版本</p>}
+        {!state?.versions.length && <p className={s.blank}>{t('尚無歷史版本')}</p>}
       </section>
       <p role="status" className={s.warning}>
-        {busy ? '處理中…' : error}
+        {busy ? t('處理中…') : error}
       </p>
       {large && <ImageViewer preview={large} close={() => setLarge(null)} />}
       {draft && (
         <Modal
-          title="上傳替換圖片"
+          title={t('上傳替換圖片')}
           busy={busy}
           close={() =>
             void run(async () => {
@@ -226,16 +267,16 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
           }
         >
           <div className={s.image}>
-            <img src={draft.preview.dataUrl} alt="待匯入圖片" />
+            <img src={draft.preview.dataUrl} alt={t('待匯入圖片')} />
           </div>
           <p>
             {draft.preview.name} · {draft.preview.width} × {draft.preview.height}
           </p>
           {draft.differences.length ? (
             <>
-              <h3 className={s.warning}>圖片規格與原圖不同</h3>
+              <h3 className={s.warning}>{t('圖片規格與原圖不同')}</h3>
               {draft.differences.map((d) => (
-                <p key={d}>{d}</p>
+                <p key={d}>{t(d)}</p>
               ))}
               <label className={s.checkLabel}>
                 <input
@@ -244,13 +285,13 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                   disabled={busy}
                   onChange={(e) => setAccepted(e.target.checked)}
                 />
-                我接受以上差異
+                {t('我接受以上差異')}
               </label>
             </>
           ) : (
-            <p className={s.success}>✓ 圖片規格一致</p>
+            <p className={s.success}>{t('✓ 圖片規格一致')}</p>
           )}
-          <p>保存為新版本並選用，不會直接寫入遊戲。</p>
+          <p>{t('保存為新版本並選用，不會直接寫入遊戲。')}</p>
           <div className={s.modalActions}>
             <button
               disabled={busy}
@@ -261,7 +302,7 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                 })
               }
             >
-              取消
+              {t('取消')}
             </button>
             <button
               className={s.primary}
@@ -274,7 +315,7 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                 })
               }
             >
-              確認匯入
+              {t('確認匯入')}
             </button>
           </div>
           <p>{error}</p>
@@ -284,21 +325,27 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
         <Modal
           title={
             action.kind === 'remove'
-              ? '永久刪除此歷史版本？'
-              : action.id
-                ? '選用此歷史版本？'
-                : '選回原圖？確認套用前不會修改遊戲'
+              ? t('永久刪除此歷史版本？')
+              : action.kind === 'cancel'
+                ? t('取消待套用？')
+                : action.id
+                  ? t('選用此歷史版本？')
+                  : t('選回原圖？確認套用前不會修改遊戲')
           }
           busy={busy}
           close={() => setAction(null)}
         >
           <p>
-            {action.kind === 'remove' ? '只刪除此歷史版本。' : '保留歷史與已部署版本。'}
-            此操作不會修改遊戲檔案。
+            {action.kind === 'remove'
+              ? t('永久刪除此版本圖片與歷史。若目前選用此版本，選用將回到遊戲目前版本。')
+              : action.kind === 'cancel'
+                ? t('選用回到遊戲目前版本，保留上傳歷史。')
+                : t('保留歷史與已部署版本。')}
+            {t('此操作不會修改遊戲檔案。')}
           </p>
           <div className={s.modalActions}>
             <button disabled={busy} onClick={() => setAction(null)}>
-              取消
+              {t('取消')}
             </button>
             <button
               className={s.primary}
@@ -308,7 +355,7 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                   setState(
                     value(
                       action.kind === 'remove'
-                        ? await window.versions.remove(asset.id, action.id!)
+                        ? await window.versions.remove(asset.id, action.id!, true)
                         : await window.versions.select(asset.id, action.id),
                     ),
                   );
@@ -317,7 +364,7 @@ export function VersionPanel({ asset, changed }: { asset: Asset; changed: () => 
                 })
               }
             >
-              確認
+              {t('確認')}
             </button>
           </div>
           <p>{error}</p>

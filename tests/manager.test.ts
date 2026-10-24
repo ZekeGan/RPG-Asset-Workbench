@@ -53,6 +53,53 @@ async function fixture() {
     batch: new BatchImports(catalog, versions),
   };
 }
+it('previews unmatched and ambiguous incoming images without selecting a target, rejecting changed sources', async () => {
+  const f = await fixture(),
+    file = join(f.root, 'unmatched.png');
+  await writeFile(file, f.bytes);
+  const [row] = await f.batch.chooseFiles(f.p.id, [file]);
+  expect(row.assetId).toBeNull();
+  expect((await f.batch.preview(row.token)).width).toBe(12);
+  expect((await f.batch.preview(row.token, true)).dataUrl).toBe(
+    'data:image/png;base64,' + f.bytes.toString('base64'),
+  );
+  expect(f.versions.state(f.assets[0].id).versions).toHaveLength(0);
+  const ambiguous = join(f.root, 'a.png');
+  await writeFile(ambiguous, f.bytes);
+  const [second] = await f.batch.chooseFiles(f.p.id, [ambiguous]);
+  expect(second.candidates).toHaveLength(2);
+  expect(second.assetId).toBeNull();
+  expect((await f.batch.preview(second.token)).width).toBe(12);
+  await writeFile(ambiguous, await sharp(f.bytes).negate().png().toBuffer());
+  await expect(f.batch.preview(second.token)).rejects.toThrow('已改變');
+});
+it('retains large-image consent through batch preview and commit without changing the source', async () => {
+  const f = await fixture(),
+    file = join(f.root, 'large.png');
+  const bytes = await sharp({
+    create: { width: 4097, height: 4096, channels: 4, background: 'red' },
+  })
+    .png()
+    .toBuffer();
+  await writeFile(file, bytes);
+  const denied = await f.batch.chooseFiles(f.p.id, [file]);
+  expect(denied[0].error).toContain('確認大圖');
+  let prompts = 0;
+  const batch = new BatchImports(f.catalog, f.versions, async () => {
+    prompts++;
+    return true;
+  });
+  const [row] = await batch.chooseFiles(f.p.id, [file]);
+  expect(row.error).toBeNull();
+  expect(prompts).toBe(1);
+  const draft = await batch.inspect(row.token, f.assets[0].id);
+  expect(draft.preview.width).toBe(4097);
+  await batch.commit(f.p.id, [{ token: row.token, assetId: f.assets[0].id, accepted: true }]);
+  const state = f.versions.state(f.assets[0].id);
+  expect(await f.versions.bytes(f.assets[0].id, state.active)).toEqual(bytes);
+  expect((await f.versions.preview(f.assets[0].id, state.active)).width).toBe(4097);
+  expect(await readFile(join(f.game, f.assets[0].path))).toEqual(f.bytes);
+}, 30000);
 it('scan preview separates additions, changed and missing paths and never replaces a baseline', async () => {
   const f = await fixture(),
     before = f.catalog.assets(f.p.id);

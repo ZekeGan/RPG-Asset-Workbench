@@ -1,6 +1,7 @@
+import { t } from '../shared/i18n';
 import React, { useEffect, useRef, useState } from 'react';
-import type { Asset, BatchFile, ImportDraft } from '../shared/contracts';
-import { value } from './ui';
+import type { Asset, BatchFile, ImportDraft, Preview } from '../shared/contracts';
+import { value, ImageViewer } from './ui';
 import s from './workbench.module.css';
 export function BatchPanel({
   projectId,
@@ -17,6 +18,7 @@ export function BatchPanel({
   initialFiles: BatchFile[] | null;
   onBusy: (busy: boolean) => void;
 }) {
+  const [large, setLarge] = useState<Preview | null>(null);
   const [files, setFiles] = useState<BatchFile[]>([]),
     [checks, setChecks] = useState<Record<string, ImportDraft>>({}),
     [accepted, setAccepted] = useState<Record<string, boolean>>({}),
@@ -50,7 +52,7 @@ export function BatchPanel({
       const c = value(await window.manager.inspectBatch(f.token, id));
       setChecks((x) => ({ ...x, [f.token]: c }));
     } catch (e) {
-      setError(String(e));
+      setError(t(String(e)));
     }
   }
   async function load() {
@@ -65,7 +67,7 @@ export function BatchPanel({
         for (const f of rows) if (f.assetId && !f.error) await inspect(f, f.assetId);
       }
     } catch (e) {
-      setError(String(e));
+      setError(t(String(e)));
     } finally {
       setBusy(false);
     }
@@ -83,47 +85,47 @@ export function BatchPanel({
       onDrop={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (busy) return;
+        if (busy || large) return;
         const dropped = Array.from(e.dataTransfer.files);
         setBusy(true);
         setError('');
         void window.manager
           .dropBatch(projectId, dropped)
           .then((r) => acceptRows(value(r)))
-          .catch((e) => setError(String(e)))
+          .catch((e) => setError(t(String(e))))
           .finally(() => setBusy(false));
       }}
     >
-      <h1>批量匯入與配對</h1>
+      <h1>{t('批量匯入與配對')}</h1>
       <p>
-        拖入圖片，或選擇圖片資料夾。完整相對路徑優先，其次全專案唯一檔名；多個候選請手動指定。只接受靜態
-        PNG。
+        {t(
+          '拖入圖片，或選擇圖片資料夾。完整相對路徑優先，其次全專案唯一檔名；多個候選請手動指定。只接受靜態 PNG。',
+        )}
       </p>
       <div className={s.dropZone}>
-        <p>拖曳圖片到此處，或選擇圖片資料夾</p>
+        <p>{t('拖曳圖片到此處，或選擇圖片資料夾')}</p>
         <button className={s.primary} disabled={busy} onClick={() => void load()}>
-          選擇圖片資料夾
+          {t('選擇圖片資料夾')}
         </button>
       </div>
       <div className={s.batchTable}>
         <div className={s.batchRow}>
-          <strong>匯入圖片</strong>
-          <strong>配對原圖</strong>
-          <strong>檢查結果</strong>
-          <strong>操作</strong>
+          <strong>{t('匯入圖片')}</strong>
+          <strong>{t('配對原圖')}</strong>
+          <strong>{t('檢查結果')}</strong>
+          <strong>{t('操作')}</strong>
         </div>
         {files.map((f) => (
           <div key={f.token} className={s.batchRow}>
             <div>
-              {checks[f.token] && (
-                <img width="100" src={checks[f.token].preview.dataUrl} alt={'匯入 ' + f.name} />
-              )}
+              {!f.error && <BatchSource file={f} open={setLarge} />}
+              {f.error && <small className={s.warning}>{t(f.error)}</small>}
               <strong>{f.path}</strong>
             </div>
             <div className={s.batchTarget}>
               {f.assetId && <BatchOriginal id={f.assetId} />}
               <select
-                aria-label={'配對 ' + f.path}
+                aria-label={t('配對 ') + f.path}
                 disabled={busy || !!f.error}
                 value={f.assetId ?? ''}
                 onChange={(e) => {
@@ -135,7 +137,7 @@ export function BatchPanel({
                   void inspect(f, id).finally(() => setBusy(false));
                 }}
               >
-                <option value="">略過／手動指定</option>
+                <option value="">{t('略過／手動指定')}</option>
                 {assets
                   .filter((a) => !a.error)
                   .map((a) => (
@@ -147,12 +149,13 @@ export function BatchPanel({
             </div>
             <div>
               <small>
-                {f.error ||
-                  (checks[f.token]
-                    ? checks[f.token].differences.join('；') || '圖片規格一致'
+                {f.error
+                  ? t(f.error)
+                  : checks[f.token]
+                    ? checks[f.token].differences.map((d) => t(d)).join('；') || t('圖片規格一致')
                     : f.candidates.length > 1
-                      ? '多個候選，請手動指定'
-                      : '未配對')}
+                      ? t('多個候選，請手動指定')
+                      : t('未配對')}
               </small>
             </div>
             {!!checks[f.token]?.differences.length && (
@@ -163,17 +166,18 @@ export function BatchPanel({
                   disabled={busy}
                   onChange={(e) => setAccepted((a) => ({ ...a, [f.token]: e.target.checked }))}
                 />
-                接受差異
+                {t('接受差異')}
               </label>
             )}
           </div>
         ))}
       </div>
-      {duplicate && <p className={s.warning}>同一素材被配對多次，請修正。</p>}
+      {large && <ImageViewer preview={large} close={() => setLarge(null)} />}
+      {duplicate && <p className={s.warning}>{t('同一素材被配對多次，請修正。')}</p>}
       <p role="status">{error}</p>
       <div className={s.modalActions}>
         <span>
-          {selected.length} 張待匯入 · {files.length - selected.length} 張略過
+          {t('{0} 張待匯入 · {1} 張略過', [selected.length, files.length - selected.length])}
         </span>
         <button
           disabled={busy}
@@ -182,7 +186,7 @@ export function BatchPanel({
             close();
           }}
         >
-          返回工作臺
+          {t('返回工作臺')}
         </button>
         <button
           className={s.primary}
@@ -204,14 +208,68 @@ export function BatchPanel({
                 done();
                 close();
               })
-              .catch((e) => setError(String(e)))
+              .catch((e) => setError(t(String(e))))
               .finally(() => setBusy(false));
           }}
         >
-          確認整批匯入
+          {t('確認整批匯入')}
         </button>
       </div>
     </section>
+  );
+}
+function BatchSource({ file, open }: { file: BatchFile; open: (p: Preview) => void }) {
+  const ref = useRef<HTMLDivElement>(null),
+    [preview, setPreview] = useState<Preview | null>(null),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let alive = true,
+      started = false;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (started || !entries.some((e) => e.isIntersecting)) return;
+        started = true;
+        void window.manager
+          .previewBatch(file.token)
+          .then((r) => {
+            if (alive) setPreview(value(r));
+          })
+          .catch((e) => {
+            if (alive) setError(t(String(e)));
+          });
+      },
+      { rootMargin: '100px' },
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => {
+      alive = false;
+      observer.disconnect();
+    };
+  }, [file.token]);
+  return (
+    <div ref={ref}>
+      {preview ? (
+        <button
+          className={s.batchPreview}
+          disabled={busy}
+          aria-label={t('放大匯入圖片 ') + file.name}
+          onClick={() => {
+            setBusy(true);
+            void window.manager
+              .previewBatch(file.token, true)
+              .then((r) => open(value(r)))
+              .catch((e) => setError(t(String(e))))
+              .finally(() => setBusy(false));
+          }}
+        >
+          <img width="100" src={preview.dataUrl} alt={file.name} />
+        </button>
+      ) : (
+        <small>{t('載入圖片…')}</small>
+      )}
+      <small role="status">{error}</small>
+    </div>
   );
 }
 function BatchOriginal({ id }: { id: string }) {
@@ -229,5 +287,5 @@ function BatchOriginal({ id }: { id: string }) {
       alive = false;
     };
   }, [id]);
-  return src ? <img width="100" src={src} alt="配對原圖" /> : <span>載入原圖…</span>;
+  return src ? <img width="100" src={src} alt={t('配對原圖')} /> : <span>{t('載入原圖…')}</span>;
 }

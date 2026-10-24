@@ -98,7 +98,7 @@ export interface VersionBridge {
   discard: (token: string) => Promise<Result<void>>;
   preview: (id: string, version: string | null) => Promise<Result<Preview>>;
   select: (id: string, version: string | null) => Promise<Result<VersionState>>;
-  remove: (id: string, version: string) => Promise<Result<VersionState>>;
+  remove: (id: string, version: string, cancelActive?: boolean) => Promise<Result<VersionState>>;
   export: (ids: string[], source: 'original' | 'active') => Promise<Result<ExportResult | null>>;
 }
 export interface ExportResult {
@@ -147,6 +147,17 @@ export interface BatchFile {
   error: string | null;
 }
 export interface ManagerBridge {
+  setLocale: (locale: 'zh-Hant' | 'zh-Hans' | 'en' | 'ja') => Promise<Result<void>>;
+  previewBatch: (token: string, full?: boolean) => Promise<Result<Preview>>;
+  cover: (projectId: string) => Promise<Result<Preview | null>>;
+  chooseCover: (projectId: string) => Promise<Result<{ token: string; preview: Preview } | null>>;
+  discardCover: () => Promise<Result<void>>;
+  saveProject: (projectId: string, name: string, cover: CoverChoice) => Promise<Result<Project>>;
+  deleteProject: (
+    projectId: string,
+    confirmed: boolean,
+    abandonRecovery: boolean,
+  ) => Promise<Result<void>>;
   dropBatch: (projectId: string, files: File[]) => Promise<Result<BatchFile[]>>;
   storage: () => Promise<Result<{ blocked: boolean; error: string | null }>>;
   retryStorage: () => Promise<Result<{ blocked: boolean; error: string | null }>>;
@@ -169,3 +180,5 @@ export interface ManagerBridge {
   relink: (projectId: string) => Promise<Result<Project | null>>;
   fullPreview: (assetId: string, versionId: string | null) => Promise<Result<Preview>>;
 }
+export type CoverChoice =
+  { kind: 'keep' | 'reset' } | { kind: 'asset'; id: string } | { kind: 'import'; token: string };

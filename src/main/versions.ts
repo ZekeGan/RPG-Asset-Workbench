@@ -44,10 +44,10 @@ export class Versions {
         .all(id) as Version[],
     };
   }
-  async check(id: string, bytes: Buffer, name: string) {
+  async check(id: string, bytes: Buffer, name: string, largeAccepted = false) {
     const a = this.asset(id);
     await this.catalog.preview(id);
-    const preview = await decodePng(bytes, name),
+    const preview = await decodePng(bytes, name, largeAccepted),
       differences: string[] = [];
     if (a.width !== preview.width || a.height !== preview.height)
       differences.push(`尺寸：${a.width} × ${a.height} → ${preview.width} × ${preview.height}`);
@@ -57,7 +57,15 @@ export class Versions {
       differences.push(`透明通道：${a.alpha ? '有' : '無'} → ${preview.hasAlpha ? '有' : '無'}`);
     return { preview, differences };
   }
-  async importBatch(items: { assetId: string; bytes: Buffer; name: string; accepted: boolean }[]) {
+  async importBatch(
+    items: {
+      assetId: string;
+      bytes: Buffer;
+      name: string;
+      accepted: boolean;
+      largeAccepted?: boolean;
+    }[],
+  ) {
     if (this.busy) throw Error('版本正在保存');
     if (!items.length || new Set(items.map((i) => i.assetId)).size !== items.length)
       throw Error('空批次或重複目標');
@@ -73,7 +81,7 @@ export class Versions {
       }[] = [];
       for (const i of items) {
         const asset = this.asset(i.assetId),
-          checked = await this.check(i.assetId, i.bytes, i.name);
+          checked = await this.check(i.assetId, i.bytes, i.name, i.largeAccepted);
         if (checked.differences.length && i.accepted !== true) throw Error('必須接受圖片差異');
         const id = randomUUID();
         const parent = await confined(await realpath(this.root), 'projects/' + asset.projectId);
@@ -155,7 +163,11 @@ export class Versions {
     return raw;
   }
   async preview(id: string, versionId: string | null) {
-    return decodePng(await this.bytes(id, versionId), pngPath(this.asset(id).path));
+    return decodePng(
+      await this.bytes(id, versionId),
+      pngPath(this.asset(id).path),
+      versionId !== null,
+    );
   }
   async select(id: string, versionId: string | null) {
     if (this.busy) throw Error('版本正在保存');
@@ -173,12 +185,12 @@ export class Versions {
       this.busy = false;
     }
   }
-  async remove(id: string, versionId: string) {
+  async remove(id: string, versionId: string, cancelActive = false) {
     if (this.busy) throw Error('版本正在保存');
     this.busy = true;
     try {
       const state = this.state(id);
-      if (state.active === versionId || state.deployed === versionId)
+      if ((state.active === versionId && !cancelActive) || state.deployed === versionId)
         throw Error('不可刪除目前選用或已部署版本');
       const v = state.versions.find((v) => v.id === versionId);
       if (!v) throw Error('版本不存在');
@@ -186,9 +198,13 @@ export class Versions {
       const dir = await confined(await realpath(this.root), `projects/${a.projectId}/versions`);
       const path = join(dir, v.id + '.png');
       // Persist deletion intent before removing bytes. Failed cleanup remains retryable.
-      this.store.db
-        .prepare('INSERT OR IGNORE INTO version_deletions(id,asset_id) VALUES(?,?)')
-        .run(v.id, id);
+      this.store.db.transaction(() => {
+        if (state.active === versionId)
+          this.store.db.prepare('UPDATE selections SET active=deployed WHERE asset_id=?').run(id);
+        this.store.db
+          .prepare('INSERT OR IGNORE INTO version_deletions(id,asset_id) VALUES(?,?)')
+          .run(v.id, id);
+      })();
       await unlink(path).catch((e) => {
         if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
       });

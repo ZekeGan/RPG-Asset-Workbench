@@ -55,6 +55,8 @@ export class Operations {
       .map((a) => a.id);
   }
   assertEditable(projectId: string) {
+    if (this.catalog.list().find((p) => p.id === projectId)?.status === 'deleting')
+      throw Error('專案刪除未完成，請返回首頁重試刪除');
     if (
       this.busy ||
       this.list(projectId).some((o) => !['committed', 'recovered', 'cancelled'].includes(o.status))
@@ -194,6 +196,8 @@ export class Operations {
   }
   async recover(projectId: string, id: string) {
     if (this.busy) throw Error('正在寫入');
+    if (this.catalog.list().find((p) => p.id === projectId)?.status === 'deleting')
+      throw Error('專案刪除未完成，禁止恢復；請返回首頁重試刪除');
     const op = this.list(projectId).find((o) => o.id === id);
     if (!op || ['committed', 'recovered', 'cancelled'].includes(op.status))
       throw Error('操作無需恢復');

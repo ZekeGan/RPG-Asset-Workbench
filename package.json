@@ -4,7 +4,7 @@
   "private": true,
   "description": "RPG Maker image tool development build",
   "main": "out/main/index.js",
-  "author": "RPG Image Tool",
+  "author": "zeke gan",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -37,7 +37,7 @@
   },
   "build": {
     "appId": "local.rpg-image-tool.poc",
-    "productName": "RPG Image Tool PoC",
+    "productName": "RPG Asset Workbench",
     "files": [
       "out/**/*",
       "package.json"

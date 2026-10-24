@@ -8,6 +8,8 @@ import { Catalog } from '../src/main/catalog';
 import { Versions } from '../src/main/versions';
 import { Exporter } from '../src/main/exporter';
 import { Operations } from '../src/main/operations';
+import { Projects } from '../src/main/projects';
+import { Groups } from '../src/main/groups';
 const roots: string[] = [],
   stores: Store[] = [];
 afterEach(async () => {
@@ -38,6 +40,122 @@ export async function setup() {
     exporter = new Exporter(versions, catalog, data);
   return { root, data, game, out, bytes, store, catalog, project, assets, versions, exporter };
 }
+function projectService(
+  f: Awaited<ReturnType<typeof setup>>,
+  fault?: (stage: 'files' | 'metadata') => void,
+) {
+  const operations = new Operations(f.store, f.catalog, f.versions, f.data);
+  return {
+    operations,
+    projects: new Projects(f.store, f.catalog, f.versions, operations, f.data, fault),
+  };
+}
+it('saves name and independent static PNG cover atomically, survives reopen and reset', async () => {
+  const f = await setup(),
+    { projects } = projectService(f);
+  const blue = await sharp({ create: { width: 9, height: 5, channels: 4, background: 'blue' } })
+    .png()
+    .toBuffer();
+  await projects.save(f.project.id, ' 新名稱 ', blue);
+  expect(f.catalog.list()[0].name).toBe('新名稱');
+  expect((await projectService(f).projects.cover(f.project.id))?.width).toBe(9);
+  await expect(projects.save(f.project.id, '不應保存', Buffer.from('bad'))).rejects.toThrow();
+  expect(f.catalog.list()[0].name).toBe('新名稱');
+  expect((await projects.cover(f.project.id))?.width).toBe(9);
+  await projects.save(f.project.id, '保留封面', undefined);
+  expect((await projects.cover(f.project.id))?.width).toBe(9);
+  await projects.save(f.project.id, '預設', null);
+  expect((await projects.cover(f.project.id))?.width).toBe(4);
+  expect(await readFile(join(f.game, f.assets[0].path))).toEqual(f.bytes);
+});
+it('explicitly deletes selected pending version, returns selection to deployed and protects deployed bytes', async () => {
+  const f = await setup(),
+    id = f.assets[0].id,
+    { operations } = projectService(f);
+  await f.versions.importBatch([{ assetId: id, bytes: f.bytes, name: 'v1.png', accepted: true }]);
+  await operations.execute(f.project.id, 'apply');
+  const deployed = f.versions.state(id).deployed;
+  await f.versions.importBatch([{ assetId: id, bytes: f.bytes, name: 'v2.png', accepted: true }]);
+  const pending = f.versions.state(id).active!;
+  await f.versions.remove(id, pending, true);
+  expect(f.versions.state(id).active).toBe(deployed);
+  expect(f.versions.state(id).versions).toHaveLength(1);
+  await expect(f.versions.remove(id, deployed!, true)).rejects.toThrow('不可刪');
+  expect(await readFile(join(f.game, f.assets[0].path))).toEqual(f.bytes);
+});
+it('deletes all project-owned files and records, preserving deployed game, exports and another project', async () => {
+  const f = await setup(),
+    { projects, operations } = projectService(f);
+  const other = await f.catalog.create((await setup()).game, 'other', true);
+  const before = f.catalog.assets(other.id);
+  const group = new Groups(f.store, f.catalog);
+  group.create(f.project.id, 'one');
+  group.change(f.project.id, group.list(f.project.id)[0].id, 'add', [f.assets[0].id]);
+  const blue = await sharp({ create: { width: 4, height: 3, channels: 4, background: 'blue' } })
+    .png()
+    .toBuffer();
+  await f.versions.importBatch([
+    { assetId: f.assets[0].id, bytes: blue, name: 'v.png', accepted: true },
+  ]);
+  await operations.execute(f.project.id, 'apply');
+  await projects.save(f.project.id, 'saved', blue);
+  await writeFile(join(f.out, 'keep.png'), blue);
+  await expect(projects.remove(f.project.id, false, false)).rejects.toThrow('確認');
+  operations.busy = true;
+  await expect(projects.remove(f.project.id, true, false)).rejects.toThrow('安全結束');
+  operations.busy = false;
+  await projects.remove(f.project.id, true, false);
+  expect(f.catalog.list().map((p) => p.id)).toEqual([other.id]);
+  expect(f.catalog.assets(other.id)).toEqual(before);
+  for (const table of [
+    'versions',
+    'selections',
+    'version_deletions',
+    'groups',
+    'group_members',
+    'operations',
+    'project_profiles',
+  ])
+    expect(f.store.db.prepare(`SELECT count(*) AS n FROM ${table}`).get()).toEqual({ n: 0 });
+  await expect(
+    readFile(join(f.data, 'projects', f.project.id, 'originals', f.assets[0].id + '.png')),
+  ).rejects.toThrow();
+  expect(await readFile(join(f.game, f.assets[0].path))).toEqual(blue);
+  expect(await readFile(join(f.game, f.assets[1].path))).toEqual(f.bytes);
+  expect(await readFile(join(f.out, 'keep.png'))).toEqual(blue);
+  expect(f.store.settings().foreignKeys).toBe(1);
+});
+it.each(['files', 'metadata'] as const)(
+  'project deletion resumes after %s failure and service restart',
+  async (stage) => {
+    const f = await setup();
+    const first = projectService(f, (point) => {
+      if (point === stage) throw Error('injected');
+    });
+    await expect(first.projects.remove(f.project.id, true, false)).rejects.toThrow('injected');
+    expect(f.catalog.list()[0].status).toBe('deleting');
+    expect(() => first.operations.assertEditable(f.project.id)).toThrow('刪除未完成');
+    const again = projectService(f);
+    await again.projects.remove(f.project.id, true, false);
+    expect(f.catalog.list()).toHaveLength(0);
+    expect(await readFile(join(f.game, f.assets[0].path))).toEqual(f.bytes);
+  },
+);
+it('requires explicit abandonment of recovery and rejects deletion through directory junctions', async () => {
+  const f = await setup(),
+    { projects } = projectService(f);
+  f.store.db
+    .prepare('INSERT INTO operations VALUES(?,?,?,?,?,?)')
+    .run('interrupted', f.project.id, 'apply', 'recovery_failed', '[]', 'injected');
+  await expect(projects.remove(f.project.id, true, false)).rejects.toThrow('放棄恢復');
+  const link = join(f.data, 'projects', f.project.id, 'external');
+  await symlink(f.game, link, process.platform === 'win32' ? 'junction' : 'dir');
+  await expect(projects.remove(f.project.id, true, true)).rejects.toThrow('連結');
+  expect(await readFile(join(f.game, f.assets[0].path))).toEqual(f.bytes);
+  await rm(link);
+  await projects.remove(f.project.id, true, true);
+  expect(f.catalog.list()).toHaveLength(0);
+});
 it('imports exact bytes, persists active separately and never changes game', async () => {
   const f = await setup(),
     a = f.assets[0];
@@ -53,6 +171,36 @@ it('imports exact bytes, persists active separately and never changes game', asy
   expect(second.state(a.id)).toEqual(s);
   await second.select(a.id, null);
   expect(second.state(a.id).versions).toHaveLength(1);
+});
+it('failed pending deletion can retry without dangling selection or changing game bytes', async () => {
+  const f = await setup(),
+    id = f.assets[0].id;
+  await f.versions.importBatch([
+    { assetId: id, bytes: f.bytes, name: 'pending.png', accepted: true },
+  ]);
+  const version = f.versions.state(id).active!;
+  f.store.db.exec(
+    "CREATE TRIGGER fail_pending_delete BEFORE DELETE ON versions BEGIN SELECT RAISE(ABORT, 'injected'); END",
+  );
+  await expect(f.versions.remove(id, version, true)).rejects.toThrow('injected');
+  expect(f.versions.state(id).active).toBeNull();
+  await expect(f.versions.select(id, version)).rejects.toThrow('刪除尚未完成');
+  f.store.db.exec('DROP TRIGGER fail_pending_delete');
+  await f.versions.remove(id, version, true);
+  expect(f.versions.state(id).versions).toHaveLength(0);
+  expect(await readFile(join(f.game, f.assets[0].path))).toEqual(f.bytes);
+});
+it('blocks project cleanup when a registered game overlaps the managed directory', async () => {
+  const f = await setup(),
+    { projects } = projectService(f);
+  f.store.db
+    .prepare('UPDATE projects SET root=? WHERE id=?')
+    .run(join(f.data, 'projects', f.project.id), f.project.id);
+  await expect(projects.remove(f.project.id, true, false)).rejects.toThrow('重疊');
+  expect(f.catalog.list()[0].status).not.toBe('deleting');
+  expect(
+    await readFile(join(f.data, 'projects', f.project.id, 'originals', f.assets[0].id + '.png')),
+  ).toEqual(f.bytes);
 });
 it('requires explicit dimension and transparency acceptance; invalid bytes cannot bypass', async () => {
   const f = await setup(),

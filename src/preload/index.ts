@@ -35,7 +35,8 @@ const versions: VersionBridge = {
   discard: (token) => ipcRenderer.invoke('version:discard', token),
   preview: (id, version) => ipcRenderer.invoke('version:preview', id, version),
   select: (id, version) => ipcRenderer.invoke('version:select', id, version),
-  remove: (id, version) => ipcRenderer.invoke('version:remove', id, version),
+  remove: (id, version, cancelActive = false) =>
+    ipcRenderer.invoke('version:remove', id, version, cancelActive),
   export: (ids, source) => ipcRenderer.invoke('version:export', ids, source),
 };
 contextBridge.exposeInMainWorld('versions', Object.freeze(versions));
@@ -52,6 +53,14 @@ contextBridge.exposeInMainWorld('operations', Object.freeze(operations));
 
 import type { ManagerBridge } from '../shared/contracts';
 const manager: ManagerBridge = {
+  setLocale: (locale) => ipcRenderer.invoke('manager:locale', locale),
+  previewBatch: (token, full = false) => ipcRenderer.invoke('manager:batch-preview', token, full),
+  cover: (id) => ipcRenderer.invoke('manager:cover', id),
+  chooseCover: (id) => ipcRenderer.invoke('manager:cover-choose', id),
+  discardCover: () => ipcRenderer.invoke('manager:cover-discard'),
+  saveProject: (id, name, cover) => ipcRenderer.invoke('manager:project-save', id, name, cover),
+  deleteProject: (id, confirmed, abandonRecovery) =>
+    ipcRenderer.invoke('manager:project-delete', id, confirmed, abandonRecovery),
   dropBatch: (id, files) =>
     ipcRenderer.invoke(
       'manager:batch-drop',

@@ -1,3 +1,4 @@
+import { t } from '../shared/i18n';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ManagerBridge, Preview, Result } from '../shared/contracts';
@@ -17,18 +18,22 @@ export function Modal({
   busy = false,
   children,
   wide = false,
+  full = false,
 }: {
   title: string;
   close: () => void;
   busy?: boolean;
   children: React.ReactNode;
   wide?: boolean;
+  full?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     ref.current?.focus();
     const key = (e: KeyboardEvent) => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      if (dialogs[dialogs.length - 1] !== ref.current) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -65,18 +70,18 @@ export function Modal({
     };
   }, [busy]);
   return createPortal(
-    <div className={`${s.app} ${s.overlay}`}>
+    <div className={`${s.app} ${s.overlay} ${full ? s.fullOverlay : ''}`}>
       <section
         ref={ref}
         tabIndex={-1}
-        className={`${s.modal} ${wide ? s.wide : ''}`}
+        className={`${s.modal} ${wide ? s.wide : ''} ${full ? s.fullModal : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
         <div className={s.modalHeading}>
           <h2>{title}</h2>
-          <button disabled={busy} aria-label="關閉彈窗" onClick={close}>
+          <button disabled={busy} aria-label={t('關閉彈窗')} onClick={close}>
             ×
           </button>
         </div>
@@ -89,34 +94,55 @@ export function Modal({
 export function ImageViewer({ preview, close }: { preview: Preview; close: () => void }) {
   const box = useRef<HTMLDivElement>(null),
     drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null),
-    [scale, setScale] = useState<number | null>(null);
+    [scale, setScale] = useState<number | null>(null),
+    fitting = useRef(true);
   const fit = () => {
     const b = box.current;
     if (b)
       setScale(
-        Math.min(1, (b.clientWidth - 32) / preview.width, (b.clientHeight - 32) / preview.height),
+        Math.max(
+          0.01,
+          Math.min((b.clientWidth - 32) / preview.width, (b.clientHeight - 32) / preview.height),
+        ),
       );
   };
   useEffect(() => {
     fit();
+    const observer = new ResizeObserver(() => {
+      if (fitting.current) fit();
+    });
+    if (box.current) observer.observe(box.current);
+    return () => observer.disconnect();
   }, [preview]);
+  const zoom = (fn: (z: number | null) => number) => {
+    fitting.current = false;
+    setScale(fn);
+  };
   return (
-    <Modal title={preview.name} close={close} wide>
+    <Modal title={preview.name} close={close} full>
       <div className={s.viewerTools}>
-        <button onClick={() => setScale((z) => Math.max(0.05, (z ?? 1) / 1.25))}>−</button>
+        <button onClick={() => zoom((z) => Math.max(0.05, (z ?? 1) / 1.25))}>−</button>
         <span>{Math.round((scale ?? 1) * 100)}%</span>
-        <button onClick={() => setScale((z) => Math.min(8, (z ?? 1) * 1.25))}>＋</button>
-        <button onClick={() => setScale(1)}>100%</button>
-        <button onClick={fit}>適合畫面</button>
+        <button onClick={() => zoom((z) => Math.min(8, (z ?? 1) * 1.25))}>＋</button>
+        <button onClick={() => zoom(() => 1)}>100%</button>
+        <button
+          onClick={() => {
+            fitting.current = true;
+            fit();
+          }}
+        >
+          {t('適合畫面')}
+        </button>
         <small>
-          {preview.width} × {preview.height} · 拖曳／滾輪縮放
+          {preview.width} × {preview.height}
+          {t('· 拖曳／滾輪縮放')}
         </small>
       </div>
       <div
         ref={box}
         className={s.viewer}
         onWheel={(e) =>
-          setScale((z) => Math.min(8, Math.max(0.05, (z ?? 1) * (e.deltaY > 0 ? 0.9 : 1.1))))
+          zoom((z) => Math.min(8, Math.max(0.05, (z ?? 1) * (e.deltaY > 0 ? 0.9 : 1.1))))
         }
         onPointerDown={(e) => {
           if (e.button !== 0) return;

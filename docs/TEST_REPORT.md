@@ -1,3 +1,13 @@
+# 四語與拖放驗證 — 2026-10-24
+
+同日捲軸修正：typecheck、build 與 Electron 四語 fixture UI 通過，增加根頁面雙軸溢出／body 邊距／捲軸寬度一致性檢查。畫面證據沿用更新後的 evidence/languages-drag，詳見 [捲軸修正紀錄](NEXT_REQUESTS.md)。本次未重跑無關資料層完整測試。
+
+typecheck、build、完整 7 檔 86 項測試通過；後續翻譯修正追加 4 項字典測試通過。Windows Electron 隔離四語／拖放驗收及本輪修改程式檔案格式檢查通過。範圍、截圖與未測事項見 [開發紀錄](DEVELOPMENT_LANGUAGES.md)。不代表真實遊戲或發行安裝包已驗收。以下為歷史結果。
+
+# 下一版專案管理／工作臺驗證 — 2026-10-24
+
+typecheck、build、本次修改檔案的 Prettier 檢查通過。完整回歸 5 檔 77 項通過；追加遊戲路徑重疊刪除保護後，受影響的版本／專案測試 29 項通過（目前共 78 項，未無故重跑其他測試）。隔離 Windows Electron UI 驗收通過。功能、證據與限制詳見 [本輪開發紀錄](DEVELOPMENT_NEXT.md)。以下為歷史結果。
+
 # 0.5 核心開發驗證 — 2026-10-23
 
 Windows x64、Node 24.13.0、npm 11.6.2、Electron 45.0.0。package 版號仍為 0.4.0，尚未發布新版本。

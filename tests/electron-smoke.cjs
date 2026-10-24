@@ -1,5 +1,23 @@
+const captureWindow = require('./electron-capture.cjs');
 // Run after build and native:electron. Uses only generated fixtures and isolated userData.
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, Menu } = require('electron');
+// Render fixtures offscreen so a locked/occluded desktop cannot invalidate screenshots.
+const Module = require('node:module');
+const originalLoad = Module._load;
+const electron = require('electron');
+function TestWindow(options) {
+  return new BrowserWindow({
+    ...options,
+    show: false,
+    webPreferences: { ...options.webPreferences, offscreen: true },
+  });
+}
+Module._load = function (request, parent, isMain) {
+  if (request === 'electron') return { ...electron, BrowserWindow: TestWindow };
+  return originalLoad.call(this, request, parent, isMain);
+};
+// Stable capture in a hidden Windows test window, independent of GPU availability.
+app.disableHardwareAcceleration();
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const assert = require('node:assert/strict');
@@ -7,14 +25,25 @@ const sharp = require('sharp');
 const base = path.resolve('out/qa-' + Date.now());
 const game = path.join(base, 'game');
 const editPath = path.join(base, 'edited.png');
-const output = path.resolve('docs/evidence');
+const output = path.resolve(
+  'docs/evidence',
+  process.env.FEATURE_UI_QA ? 'languages-drag' : process.env.NEXT_UI_QA ? 'next' : '.',
+);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let selected = game;
 dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [selected] });
-dialog.showMessageBox = async () => ({ response: 0 });
+let dialogResponse = 0,
+  lastDialog;
+dialog.showMessageBox = async (_win, options) => {
+  lastDialog = options;
+  return { response: dialogResponse };
+};
 const errors = [];
+const fixtureWindows = [];
 app.on('browser-window-created', (_event, win) => {
-  win.hide();
+  fixtureWindows.push(win);
+  if (!win.webContents.isOffscreen()) win.hide();
+  win.webContents.setBackgroundThrottling(false);
   win.webContents.on('console-message', (event) => {
     if (event.level === 'error') errors.push(event.message);
   });
@@ -40,7 +69,7 @@ app.on('browser-window-created', (_event, win) => {
   require('../out/main/index.js');
   let win;
   for (let i = 0; i < 100; i++) {
-    win = BrowserWindow.getAllWindows()[0];
+    win = fixtureWindows[0];
     if (win && !win.webContents.isLoading()) break;
     await sleep(100);
   }
@@ -133,10 +162,7 @@ app.on('browser-window-created', (_event, win) => {
     ),
   );
   await fs.mkdir(output, { recursive: true });
-  await fs.writeFile(
-    path.join(output, 'ui-0.5-original.png'),
-    (await win.webContents.capturePage()).toPNG(),
-  );
+  await fs.writeFile(path.join(output, 'ui-0.5-original.png'), (await captureWindow(win)).toPNG());
   await click('返回工作臺');
   await click('批量匯入圖片');
   await wait("document.body.textContent.includes('批量匯入與配對')");
@@ -157,7 +183,7 @@ app.on('browser-window-created', (_event, win) => {
     assert.equal(await js('document.documentElement.scrollWidth > innerWidth'), false);
     await fs.writeFile(
       path.join(output, `ui-0.5-batch-${width}.png`),
-      (await win.webContents.capturePage()).toPNG(),
+      (await captureWindow(win)).toPNG(),
     );
     layouts.push({ width, height, horizontalOverflow: false });
   }
@@ -176,6 +202,48 @@ app.on('browser-window-created', (_event, win) => {
   selected = path.join(base, 'moved');
   unwrap(await js(`window.manager.relink(${id})`));
   assert.equal(unwrap(await js(`window.catalog.availability(${id})`)).online, true);
+  if (process.env.FEATURE_UI_QA) {
+    await require('./electron-feature-checks.cjs')({
+      win,
+      js,
+      wait,
+      click,
+      unwrap,
+      output,
+      projectId: project.id,
+      assetId: assets[0].id,
+      base,
+      original,
+      edited,
+      sleep,
+      setSelected: (value) => {
+        selected = value;
+      },
+      setDialogResponse: (value) => {
+        dialogResponse = value;
+      },
+      getDialog: () => lastDialog,
+    });
+  } else if (process.env.NEXT_UI_QA) {
+    assert.equal(Menu.getApplicationMenu(), null);
+    await require('./electron-next-checks.cjs')({
+      win,
+      js,
+      wait,
+      click,
+      unwrap,
+      output,
+      projectId: project.id,
+      assetId: assets[0].id,
+      base,
+      original,
+      edited,
+      setSelected: (value) => {
+        selected = value;
+      },
+      sleep,
+    });
+  }
   assert.equal(errors.length, 0, errors.join('\n'));
   await fs.writeFile(
     path.join(output, 'ui-0.5.json'),

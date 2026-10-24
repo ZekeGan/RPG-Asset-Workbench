@@ -1,0 +1,14 @@
+{
+  "projectSettings": true,
+  "cover": true,
+  "groupPicker": true,
+  "collapsePersistence": true,
+  "cancelPending": true,
+  "deletePending": true,
+  "historyThumbnail": true,
+  "fullWindowPreview": true,
+  "projectDeletion": true,
+  "gamePreserved": true,
+  "menuRemoved": true,
+  "scope": "isolated fixture; dialogs stubbed; no real game"
+}

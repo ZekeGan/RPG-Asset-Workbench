@@ -1,0 +1,46 @@
+{
+  "locales": [
+    {
+      "locale": "en",
+      "home": true,
+      "settings": true,
+      "nativeWarning": true,
+      "translatedError": true,
+      "userNamesPreserved": true
+    },
+    {
+      "locale": "ja",
+      "home": true,
+      "settings": true,
+      "nativeWarning": true,
+      "translatedError": true,
+      "userNamesPreserved": true
+    },
+    {
+      "locale": "zh-Hans",
+      "home": true,
+      "settings": true,
+      "nativeWarning": true,
+      "translatedError": true,
+      "userNamesPreserved": true
+    },
+    {
+      "locale": "zh-Hant",
+      "home": true,
+      "settings": true,
+      "nativeWarning": true,
+      "translatedError": true,
+      "userNamesPreserved": true
+    }
+  ],
+  "regularLimit": 16777216,
+  "hardLimit": 33554432,
+  "largePreviewMs": 233,
+  "singleDropConfirm": true,
+  "cancelDoesNotImport": true,
+  "multipleDropBatch": true,
+  "unmatchedPreview": true,
+  "listEnlarge": true,
+  "gameUnchanged": true,
+  "scope": "Generated MZ fixture; native dialogs stubbed; real File objects and DOM drop events; no OS drag gesture or user game"
+}

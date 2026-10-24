@@ -9,11 +9,12 @@ import type { BatchFile } from '../shared/contracts';
 export class BatchImports {
   private files = new Map<
     string,
-    { projectId: string; root: string; path: string; hash: string | null }
+    { projectId: string; root: string; path: string; hash: string | null; largeAccepted: boolean }
   >();
   constructor(
     private catalog: Catalog,
     private versions: Versions,
+    private consent: (bytes: Buffer, name: string) => Promise<boolean> = async () => false,
   ) {}
   clear() {
     this.files.clear();
@@ -35,16 +36,19 @@ export class BatchImports {
         if (!e.isFile()) continue;
         if (!/\.(png|jpe?g|webp|gif|apng)$/i.test(e.name)) continue;
         if (files.length >= 2000) throw Error('單批最多 2000 張，請分批匯入');
-        let hash: string | null = null,
+        let largeAccepted = false,
+          hash: string | null = null,
           error: string | null = null;
         try {
-          hash = (await decodePng(await stableRead(await confined(root, path)), e.name)).sha256;
+          const bytes = await stableRead(await confined(root, path));
+          largeAccepted = await this.consent(bytes, e.name);
+          hash = (await decodePng(bytes, e.name, largeAccepted)).sha256;
         } catch (err) {
           error = String(err);
         }
         const matches = this.matches(assets, path);
         const token = randomUUID();
-        this.files.set(token, { projectId, root, path, hash });
+        this.files.set(token, { projectId, root, path, hash, largeAccepted });
         files.push({
           token,
           path,
@@ -81,10 +85,13 @@ export class BatchImports {
       const resolved = await realpath(selected),
         root = dirname(resolved),
         path = basename(resolved);
-      let hash: string | null = null,
+      let largeAccepted = false,
+        hash: string | null = null,
         error: string | null = null;
       try {
-        hash = (await decodePng(await stableRead(await confined(root, path)), path)).sha256;
+        const bytes = await stableRead(await confined(root, path));
+        largeAccepted = await this.consent(bytes, path);
+        hash = (await decodePng(bytes, path, largeAccepted)).sha256;
       } catch (e) {
         error = String(e);
       }
@@ -92,7 +99,7 @@ export class BatchImports {
       const img = normalized.toLowerCase().lastIndexOf('/img/');
       const matches = this.matches(assets, img < 0 ? path : normalized.slice(img + 1)),
         token = randomUUID();
-      this.files.set(token, { projectId, root, path, hash });
+      this.files.set(token, { projectId, root, path, hash, largeAccepted });
       files.push({
         token,
         path,
@@ -108,14 +115,21 @@ export class BatchImports {
     const f = this.files.get(token);
     if (!f) throw Error('批次已過期');
     const bytes = await stableRead(await confined(f.root, f.path));
-    const preview = await decodePng(bytes, basename(f.path));
+    if (!f.hash) throw Error('此圖片未通過匯入檢查，請重新選擇');
+    const preview = await decodePng(bytes, basename(f.path), f.largeAccepted);
     if (preview.sha256 !== f.hash) throw Error('來源自預檢後已改變，請重新載入');
-    return { ...f, bytes, name: basename(f.path) };
+    return { ...f, bytes, preview, name: basename(f.path) };
+  }
+  async preview(token: string, full = false) {
+    const f = await this.read(token);
+    return full
+      ? { ...f.preview, dataUrl: 'data:image/png;base64,' + f.bytes.toString('base64') }
+      : f.preview;
   }
   async inspect(token: string, assetId: string) {
     const f = await this.read(token);
     if (this.versions.asset(assetId).projectId !== f.projectId) throw Error('跨專案配對遭拒');
-    return { token, ...(await this.versions.check(assetId, f.bytes, f.name)) };
+    return { token, ...(await this.versions.check(assetId, f.bytes, f.name, f.largeAccepted)) };
   }
   async commit(projectId: string, items: { token: string; assetId: string; accepted: boolean }[]) {
     if (!Array.isArray(items) || !items.length || items.length > 2000) throw Error('批次清單無效');
@@ -134,7 +148,13 @@ export class BatchImports {
         throw Error('跨專案配對遭拒');
       total += f.bytes.length;
       if (total > 128 * 1024 * 1024) throw Error('單批圖片總量超過 128 MiB，請分批');
-      prepared.push({ assetId: i.assetId, bytes: f.bytes, name: f.name, accepted: i.accepted });
+      prepared.push({
+        assetId: i.assetId,
+        bytes: f.bytes,
+        name: f.name,
+        accepted: i.accepted,
+        largeAccepted: f.largeAccepted,
+      });
     }
     await this.versions.importBatch(prepared);
     this.clear();
