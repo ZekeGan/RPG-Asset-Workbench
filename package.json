@@ -1,10 +1,11 @@
 {
   "name": "rpg-image-tool-poc",
-  "version": "0.5.1",
+  "version": "0.5.5",
   "private": true,
   "description": "RPG Maker image tool development build",
   "main": "out/main/index.js",
-  "author": "zeke gan",
+  "author": "Zeke Gan",
+  "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -12,7 +13,8 @@
     "test": "vitest run",
     "native:electron": "electron-builder install-app-deps",
     "native:node": "npm rebuild better-sqlite3",
-    "pack:win": "npm run build && electron-builder --win --x64 --dir",
+    "pack:win": "npm run build && electron-builder --win --x64 --dir && node scripts/prepare-release.cjs",
+    "pack:zip": "npm run pack:win && powershell -NoProfile -File scripts/make-release.ps1",
     "format": "prettier --write src tests *.ts *.mts *.json .vscode/*.json",
     "format:check": "prettier --check src tests *.ts *.mts *.json .vscode/*.json"
   },
@@ -40,7 +42,9 @@
     "productName": "RPG Asset Workbench",
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "resources/icon.png",
+      "resources/icon.ico"
     ],
     "asarUnpack": [
       "**/*.node",
@@ -51,6 +55,7 @@
       "output": "release"
     },
     "win": {
+      "icon": "resources/icon.ico",
       "target": "dir"
     }
   }

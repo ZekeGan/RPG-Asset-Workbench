@@ -1,3 +1,39 @@
+.scanFeedback {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.scanFeedback > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.scanFeedback small {
+  display: block;
+  margin-top: 4px;
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border: 2px solid #465057;
+  border-top-color: #a4e0d1;
+  border-radius: 50%;
+  animation: scanSpin 0.8s linear infinite;
+}
+@keyframes scanSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
 .app {
   --panel: #22272b;
   --line: #394147;

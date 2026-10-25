@@ -5,6 +5,20 @@ const { app, BrowserWindow, dialog, Menu } = require('electron');
 const Module = require('node:module');
 const originalLoad = Module._load;
 const electron = require('electron');
+let releaseScan;
+let scanCalls = 0;
+const scanGate = new Promise((resolve) => {
+  releaseScan = resolve;
+});
+const originalHandle = electron.ipcMain.handle.bind(electron.ipcMain);
+electron.ipcMain.handle = (channel, listener) =>
+  originalHandle(channel, async (...args) => {
+    if (process.env.SCAN_UI_QA && channel === 'catalog:scan-commit') {
+      scanCalls++;
+      await scanGate;
+    }
+    return listener(...args);
+  });
 function TestWindow(options) {
   return new BrowserWindow({
     ...options,
@@ -27,7 +41,13 @@ const game = path.join(base, 'game');
 const editPath = path.join(base, 'edited.png');
 const output = path.resolve(
   'docs/evidence',
-  process.env.FEATURE_UI_QA ? 'languages-drag' : process.env.NEXT_UI_QA ? 'next' : '.',
+  process.env.SCAN_UI_QA
+    ? 'scan-feedback'
+    : process.env.FEATURE_UI_QA
+      ? 'languages-drag'
+      : process.env.NEXT_UI_QA
+        ? 'next'
+        : '.',
 );
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let selected = game;
@@ -191,9 +211,40 @@ app.on('browser-window-created', (_event, win) => {
   unwrap(await js(`window.operations.execute(${id}, 'apply', [], true)`));
   assert.deepEqual(await fs.readFile(path.join(game, 'img/pictures/a.png')), original);
   await fs.writeFile(path.join(game, 'img/pictures/new.png'), original);
-  const plan = unwrap(await js(`window.catalog.scanPlan(${id})`));
-  assert.deepEqual(plan.added, ['img/pictures/new.png']);
-  unwrap(await js(`window.catalog.scanCommit(${id},${JSON.stringify(plan.token)})`));
+  if (process.env.SCAN_UI_QA) {
+    await click('重新掃描新增素材');
+    await wait("!!document.querySelector('[role=dialog]')");
+    await click('確認新增／繼續掃描');
+    await wait(
+      "document.querySelector('[role=dialog] [role=status]')?.textContent.includes('掃描中…')",
+    );
+    assert.equal(
+      await js(
+        "Array.from(document.querySelectorAll('[role=dialog] button')).every(b=>b.disabled)",
+      ),
+      true,
+    );
+    assert.equal(
+      await js("!!document.querySelector('[role=dialog] [role=status] [aria-hidden=true]')"),
+      true,
+    );
+    await js(
+      "Array.from(document.querySelectorAll('[role=dialog] button')).find(b=>b.textContent==='掃描中…').click()",
+    );
+    assert.equal(scanCalls, 1);
+    await js('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+    await sleep(150);
+    await fs.writeFile(path.join(output, 'scan-busy-800.png'), (await captureWindow(win)).toPNG());
+    releaseScan();
+    await wait(
+      "!document.querySelector('[role=dialog]') && document.body.textContent.includes('掃描結果已保存')",
+    );
+    assert.equal(await js("document.querySelectorAll('[role=dialog] [role=status]').length"), 0);
+  } else {
+    const plan = unwrap(await js(`window.catalog.scanPlan(${id})`));
+    assert.deepEqual(plan.added, ['img/pictures/new.png']);
+    unwrap(await js(`window.catalog.scanCommit(${id},${JSON.stringify(plan.token)})`));
+  }
   assert.equal(unwrap(await js(`window.catalog.assets(${id})`)).length, 2);
   await fs.rename(game, path.join(base, 'moved'));
   assert.equal(unwrap(await js(`window.catalog.availability(${id})`)).online, false);

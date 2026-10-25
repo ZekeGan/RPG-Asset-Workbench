@@ -94,6 +94,7 @@ else
     Menu.setApplicationMenu(null);
     win = new BrowserWindow({
       title: 'R-aW — RPG Asset Workbench',
+      icon: join(app.getAppPath(), 'resources', 'icon.png'),
       width: 1120,
       height: 780,
       minWidth: 760,

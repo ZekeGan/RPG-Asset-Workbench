@@ -371,7 +371,12 @@ export default function Workbench() {
     >
       <header className={s.top}>
         <div className={s.brand} title="RPG Asset Workbench">
-          <Icon name="image" />
+          <img
+            src={new URL('../../resources/icon.png', import.meta.url).href}
+            width="28"
+            height="28"
+            alt=""
+          />
           <strong>R-aW</strong>
         </div>
         {project && (
@@ -1044,6 +1049,24 @@ export default function Workbench() {
               </details>
             ))}
           </div>
+          {busy && (
+            <div className={s.scanFeedback} role="status" aria-live="polite">
+              <span className={s.spinner} aria-hidden="true" />
+              <div>
+                <strong>{t('掃描中…')}</strong>
+                <small>{t('處理中，請勿關閉')}</small>
+                {progress?.running && (
+                  <small>
+                    {t('處理 {0} 筆 · 注意 {1} 筆 · {2}', [
+                      progress.processed,
+                      progress.errors,
+                      progress.current,
+                    ])}
+                  </small>
+                )}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 5 }}>
             <button disabled={busy} onClick={() => setScanPlan(null)}>
               {t('取消')}
@@ -1052,6 +1075,8 @@ export default function Workbench() {
             <button
               disabled={busy}
               onClick={() => {
+                if (busy) return;
+                setProgress(null);
                 setBusy(true);
                 void window.catalog
                   .scanCommit(project.id, scanPlan.token)
@@ -1077,7 +1102,7 @@ export default function Workbench() {
                   });
               }}
             >
-              {t('確認新增／繼續掃描')}
+              {busy ? t('掃描中…') : t('確認新增／繼續掃描')}
             </button>
           </div>
         </Modal>

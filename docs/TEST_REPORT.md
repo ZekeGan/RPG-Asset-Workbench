@@ -1,3 +1,25 @@
+# 0.5.5 掃描提示 — 2026-10-25
+
+typecheck、build、隔離 Windows Electron fixture smoke 通過。測試暫緩 scan-commit 回覆，驗證首筆進度前即顯示 spinner／掃描中文字、視窗按鈕停用、重複點擊只送出一次，以及完成後關閉視窗並顯示保存結果。已檢視 [800×600 掃描畫面](evidence/scan-feedback/scan-busy-800.png)。四語沿用已存在翻譯，減少動態偏好停用旋轉；沒有變更資料層或重跑其完整回歸。歷史 87 項結果不當成本次新跑結果。
+
+效率回顧：沿用現有掃描 fixture 加入等待期間的 UI 斷言；不另建測試框架或重跑無關資料測試。
+
+# 0.5.4 ZIP 校驗修正 — 2026-10-25
+
+使用者回報 0.5.3 文件／12 份授權檔已成功準備，ZIP 建立後因缺少 `Get-FileHash` 而失敗。0.5.4 改用 .NET SHA-256；`pack:zip`、typecheck、完整 7 檔 87 項測試通過。ZIP 可開啟，必要文件與 12 份授權檔存在，app.asar 版號 0.5.4，Windows `certutil` 算得的 SHA-256 與 `.sha256` 相同；原生模組切回 Electron。乾淨 Windows／升級／LGPL 發行義務仍待驗收。見 [發行準備](development/RELEASE_PREPARATION.md)。
+
+# 0.5.3 發行腳本驗證狀態 — 2026-10-25
+
+12 個套件授權檔、PowerShell 腳本語法、版本一致性與四語 README 引用靜態檢查通過。自動審核用量限制使新的 Node／npm 打包與測試尚未執行，0.5.3 ZIP、授權包完整性、SHA-256 與乾淨環境仍是 NOT RUN。詳見 [發行準備](development/RELEASE_PREPARATION.md)。以下為歷史結果。
+
+# 0.5.2 圖示驗證 — 2026-10-25
+
+typecheck、build、pack:win 通過；ICO 七種尺寸及透明 PNG、封裝內圖示與版號檢查通過，已實際擷取並檢視 EXE 圖示。未重跑無關功能測試，也不視為乾淨環境或簽章驗收。見 [更新紀錄](UPDATE_0.5.2.md)。
+
+# 使用者回報與發行文件 — 2026-10-25
+
+使用者回報手動測試完成、無重大問題；另回報排除 PATH 中 Node 後打包程式正常。未提供逐項紀錄與成品 hash，不把此摘要視為乾淨 Windows 或全部發行門檻通過。本輪整理四語文件、開發入口與 MIT 授權，僅檢查文件／metadata，沒有重跑應用測試。未完成項目見 [發行準備](development/RELEASE_PREPARATION.md)。以下保留歷史測試結果。
+
 # 0.5.1 群組與版面驗證 — 2026-10-25
 
 typecheck、build、受影響的 27 項測試及四語 Electron fixture UI 驗收通過。包含改名、語言圖示、歷史窄視窗及預覽頂端對齊；詳見 [更新紀錄](UPDATE_0.5.1.md)。未重跑無關資料層回歸，人工發行清單仍需實測。以下為歷史結果。
